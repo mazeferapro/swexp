@@ -1,0 +1,16 @@
+"starwarsrp"
+{
+    "base"          "base"
+    
+    "title"         "StarWarsRP"
+    "version"       "0.0.1"
+
+    "category"      "rp"
+
+    "maps"          ""
+    "menusystem"    "0"
+
+    "author_name"   "Mazefera"
+    "author_email"  "mazeferapro@gmail.com"
+    "author_url"    ""
+}
