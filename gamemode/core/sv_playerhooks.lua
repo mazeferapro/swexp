@@ -1,7 +1,12 @@
 -- core/sv_playerhooks.lua
--- Загрузка игрока при входе — аналог totrlw
+-- Загрузка игрока при входе
 
--- SetupMove-костыль для гарантии полной загрузки клиента перед отправкой данных
+if CLIENT then return end
+
+-- ============================================================
+-- PlayerInitialSpawn → ждём полной загрузки клиента
+-- ============================================================
+
 function GM:PlayerInitialSpawn(pPlayer)
     hook.Add('SetupMove', pPlayer, function(self, ply, _, cmd)
         if self == ply and not cmd:IsForced() then
@@ -12,7 +17,7 @@ function GM:PlayerInitialSpawn(pPlayer)
 end
 
 -- ============================================================
--- PlayerFullLoad → ищем/создаём запись в players
+-- PlayerFullLoad → ищем/создаём запись в swexp_players
 -- ============================================================
 
 hook.Add('SWExp::PlayerFullLoad', 'SWExp::LoadPlayerData', function(pPlayer)
@@ -21,28 +26,27 @@ hook.Add('SWExp::PlayerFullLoad', 'SWExp::LoadPlayerData', function(pPlayer)
     MySQLite.query(
         string.format('SELECT * FROM `swexp_players` WHERE steamid = %s;', MySQLite.SQLStr(sSteamID)),
         function(tData)
-            if tData and istable(tData) then
-                pPlayer.SWExp_ID             = tData[1].id
+            if tData and istable(tData) and tData[1] then
+                pPlayer.SWExp_ID             = tonumber(tData[1].id)
                 pPlayer.SWExp_CharSlots      = tonumber(tData[1].character_slots) or 1
                 pPlayer.SWExp_DonateCurrency = tonumber(tData[1].donate_currency) or 0
+                pPlayer.SWExp_Characters     = {}
 
-                pPlayer.SWExp_Characters = {}
-                hook.Run('SWExp::PlayerIDRetrieved', pPlayer, tData[1].id)
+                hook.Run('SWExp::PlayerIDRetrieved', pPlayer, tonumber(tData[1].id))
             else
                 MySQLite.query(
                     string.format(
                         'INSERT INTO `swexp_players` (steamid, community_id, character_slots, donate_currency) VALUES (%s, %s, %s, %s);',
                         MySQLite.SQLStr(pPlayer:SteamID()),
                         MySQLite.SQLStr(pPlayer:SteamID64()),
-                        1,
-                        0
+                        1, 0
                     ),
                     function(_, insertID)
                         pPlayer.SWExp_ID             = insertID
                         pPlayer.SWExp_CharSlots      = 1
                         pPlayer.SWExp_DonateCurrency = 0
+                        pPlayer.SWExp_Characters     = {}
 
-                        pPlayer.SWExp_Characters = {}
                         hook.Run('SWExp::PlayerIDRetrieved', pPlayer, insertID)
                     end
                 )
@@ -57,9 +61,12 @@ end)
 
 hook.Add('SWExp::PlayerIDRetrieved', 'SWExp::LoadCharacters', function(pPlayer, playerID)
     MySQLite.query(
-        string.format('SELECT * FROM `swexp_characters` WHERE player_id = %s;', MySQLite.SQLStr(playerID)),
+        string.format('SELECT * FROM `swexp_characters` WHERE player_id = %s ORDER BY id ASC;',
+            MySQLite.SQLStr(playerID)),
         function(tChars)
             pPlayer.SWExp_Characters = tChars or {}
+
+            -- Открываем меню выбора персонажа
             netstream.Start(pPlayer, 'SWExp::OpenCharSelect', pPlayer.SWExp_Characters)
         end
     )
@@ -73,10 +80,15 @@ function GM:PlayerSpawn(pPlayer)
     pPlayer:SetMaxHealth(100)
     pPlayer:SetHealth(100)
     pPlayer:SetArmor(0)
+
+    -- Применяем скорость с учётом брони
+    if SWExp.Armor and SWExp.Armor.ApplyArmorSpeed then
+        SWExp.Armor.ApplyArmorSpeed(pPlayer)
+    end
 end
 
 function GM:PlayerLoadout(pPlayer)
-    return true -- блокируем стандартный loadout
+    return true
 end
 
 function GM:PlayerSelectSpawn(pPlayer)

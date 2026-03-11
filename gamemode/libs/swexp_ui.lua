@@ -725,4 +725,232 @@ hook.Add('DrawOverlay', 'SWUI.Tooltip', function()
     SWUI.DrawTooltip()
 end)
 
+-- ============================================================
+-- Star Wars: Expedition — UI Sound System
+-- libs/swexp_ui_sounds.lua
+--
+-- Подключение: include('libs/swexp_ui_sounds.lua') в shared.lua
+-- на клиенте (после swexp_ui.lua)
+-- ============================================================
+
+if not CLIENT then return end
+
+-- ============================================================
+-- ЗВУКИ — используем стандартные Half-Life 2 / GMod звуки
+-- которые точно есть в любой сборке
+-- ============================================================
+
+SWUI.Sounds = {
+    -- Наведение курсора
+    Hover    = 'uisfx/sound-8.wav',   -- мягкий тихий тик
+    -- Клик / подтверждение
+    Click    = 'uisfx/sound-1.wav',   -- чёткий клик
+    -- Клик кнопки опасного действия (danger / warn стиль)
+    ClickWarn = 'uisfx/sound-1.wav',  -- более жёсткий
+    -- Открытие окна
+    Open     = 'uisfx/sound-3.wav',    -- «появление»
+    -- Закрытие окна
+    Close    = 'uisfx/sound-4.wav',   -- «схлопывание»
+    -- Смена вкладки / таба
+    Tab      = 'uisfx/sound-1.wav',   -- лёгкий переключатель
+    -- Выбор строки в списке
+    Select   = 'uisfx/sound-1.wav',   -- мягкий выбор
+    -- Ошибка / заблокировано
+    Denied   = 'uisfx/sound-1.wav',    -- низкий, запрещающий
+    -- Успешное действие (применить, экипировать)
+    Success  = 'uisfx/sound-1.wav',   -- позитивный
+}
+
+-- Громкость по умолчанию (можно будет вынести в настройки)
+SWUI.SoundVolume = 1
+
+-- ============================================================
+-- Вспомогательная функция воспроизведения
+-- ============================================================
+
+function SWUI.PlaySound(snd, vol)
+    surface.PlaySound(snd)
+    -- surface.PlaySound не поддерживает громкость напрямую,
+    -- поэтому используем EmitSound через LocalPlayer если доступен
+    local ply = IsValid(LocalPlayer()) and LocalPlayer()
+    if ply then
+        ply:EmitSound(snd, 75, 100, vol or SWUI.SoundVolume)
+    end
+end
+
+-- ============================================================
+-- Патчим SWUI компоненты — добавляем звуки к уже существующим
+-- функциям создания элементов
+-- ============================================================
+
+-- ── Сохраняем оригиналы ─────────────────────────────────────
+
+local _CreateWindow  = SWUI.CreateWindow
+local _CreateButton  = SWUI.CreateButton
+local _CreateTabBar  = SWUI.CreateTabBar
+local _CreateListRow = SWUI.CreateListRow
+local _CreateSlotTile = SWUI.CreateSlotTile
+local _CreateCategoryNav = SWUI.CreateCategoryNav
+
+-- ── ОКНО ────────────────────────────────────────────────────
+
+function SWUI.CreateWindow(title, w, h, parent, accent)
+    local frame, content = _CreateWindow(title, w, h, parent, accent)
+
+    -- Звук при открытии
+    SWUI.PlaySound(SWUI.Sounds.Open)
+
+    -- Патчим кнопку закрытия (она создаётся внутри CreateWindow)
+    -- Находим её как дочерний DButton с Paint через итерацию
+    for _, child in ipairs(frame:GetChildren()) do
+        if child:GetClassName() == 'DButton' then
+            local origDoClick = child.DoClick
+            child.DoClick = function(self)
+                SWUI.PlaySound(SWUI.Sounds.Close)
+                if origDoClick then origDoClick(self) end
+            end
+            break
+        end
+    end
+
+    return frame, content
+end
+
+-- ── КНОПКА ──────────────────────────────────────────────────
+
+function SWUI.CreateButton(parent, text, x, y, w, h, style, onClick)
+    local btn = _CreateButton(parent, text, x, y, w, h, style, onClick)
+
+    -- Звук наведения
+    btn.OnCursorEntered = function(self)
+        SWUI.PlaySound(SWUI.Sounds.Hover, SWUI.SoundVolume * 0.6)
+    end
+
+    -- Звук клика (в зависимости от стиля)
+    local origDoClick = btn.DoClick
+    btn.DoClick = function(self)
+        local snd = (style == 'danger' or style == 'warn')
+            and SWUI.Sounds.ClickWarn
+            or  SWUI.Sounds.Click
+        SWUI.PlaySound(snd)
+        if origDoClick then origDoClick(self) end
+    end
+
+    return btn
+end
+
+-- ── ТАБЫ ────────────────────────────────────────────────────
+
+function SWUI.CreateTabBar(parent, tabs, x, y, w, h, onChange)
+    -- Оборачиваем onChange чтобы добавить звук при смене таба
+    local wrappedOnChange = function(id)
+        SWUI.PlaySound(SWUI.Sounds.Tab, SWUI.SoundVolume * 0.7)
+        if onChange then onChange(id) end
+    end
+
+    local bar = _CreateTabBar(parent, tabs, x, y, w, h, wrappedOnChange)
+
+    -- Звук наведения на кнопки табов
+    for _, child in ipairs(bar:GetChildren()) do
+        if child:GetClassName() == 'DButton' then
+            child.OnCursorEntered = function(self)
+                SWUI.PlaySound(SWUI.Sounds.Hover, SWUI.SoundVolume * 0.5)
+            end
+        end
+    end
+
+    return bar
+end
+
+-- ── СТРОКА СПИСКА ───────────────────────────────────────────
+
+function SWUI.CreateListRow(parent, h, selected, locked, onClick)
+    -- Добавляем звуки в onClick
+    local wrappedOnClick
+    if onClick then
+        wrappedOnClick = function()
+            if locked then
+                SWUI.PlaySound(SWUI.Sounds.Denied)
+            else
+                SWUI.PlaySound(SWUI.Sounds.Select)
+                onClick()
+            end
+        end
+    end
+
+    local row = _CreateListRow(parent, h, selected, locked, wrappedOnClick)
+
+    -- Звук наведения (только если не заблокирована)
+    row.OnCursorEntered = function(self)
+        if not self._locked then
+            SWUI.PlaySound(SWUI.Sounds.Hover, SWUI.SoundVolume * 0.45)
+        end
+    end
+
+    return row
+end
+
+-- ── СЛОТ ТАЙЛ ───────────────────────────────────────────────
+
+function SWUI.CreateSlotTile(parent, x, y, size, filled, onClick)
+    local wrappedOnClick
+    if onClick then
+        wrappedOnClick = function()
+            SWUI.PlaySound(filled and SWUI.Sounds.Select or SWUI.Sounds.Denied)
+            onClick()
+        end
+    end
+
+    local tile = _CreateSlotTile(parent, x, y, size, filled, wrappedOnClick)
+
+    tile.OnCursorEntered = function(self)
+        SWUI.PlaySound(SWUI.Sounds.Hover, SWUI.SoundVolume * 0.4)
+    end
+
+    return tile
+end
+
+-- ── КАТЕГОРИЙНЫЙ НАВ ────────────────────────────────────────
+
+function SWUI.CreateCategoryNav(parent, items, x, y, w, h, onChange, cornerRadius)
+    -- Оборачиваем onChange
+    local wrappedOnChange = function(id)
+        SWUI.PlaySound(SWUI.Sounds.Tab, SWUI.SoundVolume * 0.65)
+        if onChange then onChange(id) end
+    end
+
+    local nav = _CreateCategoryNav(parent, items, x, y, w, h, wrappedOnChange, cornerRadius)
+
+    -- Звук наведения на строки навигации
+    for _, child in ipairs(nav:GetChildren()) do
+        if child:GetClassName() == 'DPanel' then
+            child.OnCursorEntered = function(self)
+                self._hov = true
+                SWUI.PlaySound(SWUI.Sounds.Hover, SWUI.SoundVolume * 0.4)
+            end
+        end
+    end
+
+    return nav
+end
+
+-- ============================================================
+-- Публичные хелперы для ручного использования в модулях
+-- ============================================================
+
+-- Вызывай когда действие успешно завершено (экипировка, крафт)
+function SWUI.SoundSuccess()
+    SWUI.PlaySound(SWUI.Sounds.Success)
+end
+
+-- Вызывай когда действие заблокировано или ошибка
+function SWUI.SoundDenied()
+    SWUI.PlaySound(SWUI.Sounds.Denied)
+end
+
+-- Вызывай при открытии любого кастомного окна вручную
+function SWUI.SoundOpen()
+    SWUI.PlaySound(SWUI.Sounds.Open)
+end
+
 print('[SWExp] UI Library загружена.')
