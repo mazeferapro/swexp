@@ -1,20 +1,18 @@
--- modules/chars/cl_f4.lua
--- F4 Меню — система персонажей
--- Полноэкранное меню на базе SWUI
+-- modules/cl_f4.lua
+-- F4 Меню — выбор персонажа SWExp
 
 if SERVER then return end
 
 SWExp.F4 = SWExp.F4 or {}
 
 local tChars   = {}
-local nActive  = 0
 local nCurrent = 1
+local nActive  = 0
 
--- ============================================================
--- Хелперы
--- ============================================================
+local DEFAULT_MODEL = 'models/player/combine_super_soldier.mdl'
 
-local function IsEmpty(char) return char == nil or char._empty == true end
+local function IsEmpty(c) return c == nil or c._empty == true end
+local function GetSlots() return LocalPlayer():GetNWInt('swexp_char_slots', 1) end
 
 -- ============================================================
 -- Открытие меню
@@ -26,22 +24,21 @@ function SWExp.F4:Open(tCharacters)
     tChars   = tCharacters or {}
     nCurrent = 1
 
-    -- Найдём активного
-    local localCallsign = LocalPlayer():GetNWString('swexp_callsign', '')
+    -- определяем активного по позывному
+    local localCS = LocalPlayer():GetNWString('swexp_callsign', '')
     nActive = 0
     for _, c in ipairs(tChars) do
-        if c.callsign == localCallsign then nActive = tonumber(c.id) end
+        if c.callsign == localCS then nActive = tonumber(c.id) end
     end
 
-    -- Пустой слот
-    local slots = LocalPlayer().SWExp_CharSlots or 1
-    if #tChars < slots then
+    -- добавляем пустой слот если есть место
+    if #tChars < GetSlots() then
         tChars[#tChars + 1] = { _empty = true }
     end
 
     local SW, SH = ScrW(), ScrH()
+    local CW, CH = SW, SH
 
-    -- ── Полноэкранный фрейм ──────────────────────────
     local frame = vgui.Create('DFrame')
     frame:SetSize(SW, SH)
     frame:SetPos(0, 0)
@@ -49,426 +46,376 @@ function SWExp.F4:Open(tCharacters)
     frame:ShowCloseButton(false)
     frame:MakePopup()
     frame.Paint = function(s, fw, fh)
-        -- Тёмный фон
-        surface.SetDrawColor(SWUI.Colors.PanelBG)
+        surface.SetDrawColor(6, 10, 16, 255)
         surface.DrawRect(0, 0, fw, fh)
     end
     self.Frame = frame
 
-    -- ── Titlebar ─────────────────────────────────────
     local TBAR = 46
     local titlePnl = vgui.Create('DPanel', frame)
     titlePnl:SetPos(0, 0)
     titlePnl:SetSize(SW, TBAR)
     titlePnl.Paint = function(s, tw, th)
         SWUI.DrawRoundedRect(0, 0, tw, th, 0, SWUI.Colors.Panel2)
-        surface.SetDrawColor(SWUI.Colors.Border)
-        surface.DrawRect(0, th - 1, tw, 1)
-        -- Accent линия слева
-        surface.SetDrawColor(SWUI.Colors.Accent)
+        surface.SetDrawColor(SWUI.Colors.Accent.r, SWUI.Colors.Accent.g, SWUI.Colors.Accent.b, 255)
         surface.DrawRect(0, th - 2, tw, 2)
+        SWUI.DrawText('ТЕРМИНАЛ КЛОНОВ', 'SWUI.Header', 24, th/2,
+            SWUI.Colors.TextHi, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
     end
 
-    SWUI.DrawText('ЭКСПЕДИЦИОННЫЙ ТЕРМИНАЛ', 'SWUI.Header', 24, TBAR / 2,
-        SWUI.Colors.TextHi, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
+    SWUI.CreateButton(titlePnl, '×', SW - 44, 7, 30, 30, 'ghost', function()
+        frame:Remove()
+    end)
 
-    -- Subtext — текущий клон
-    local lblSub = vgui.Create('DLabel', titlePnl)
-    lblSub:SetPos(SW / 2 - 150, 0)
-    lblSub:SetSize(300, TBAR)
-    lblSub:SetFont('SWUI.Small')
-    lblSub:SetTextColor(SWUI.Colors.TextDim)
-    lblSub:SetContentAlignment(5)
-    local function UpdateSub()
-        local cn = LocalPlayer():GetNWString('swexp_clone_number', '')
-        local cs = LocalPlayer():GetNWString('swexp_callsign', '')
-        lblSub:SetText(cn ~= '' and (cn .. (cs ~= '' and '  ·  ' .. cs or '')) or '')
-    end
-    UpdateSub()
+    local content = vgui.Create('DPanel', frame)
+    content:SetPos(0, TBAR)
+    content:SetSize(SW, SH - TBAR)
+    content.Paint = function() end
 
-    -- Кнопка закрыть
-    local btnClose = vgui.Create('DButton', titlePnl)
-    btnClose:SetPos(SW - 36, 10)
-    btnClose:SetSize(26, 26)
-    btnClose:SetText('')
-    btnClose.Paint = function(s, bw, bh)
-        local hov = s:IsHovered()
-        draw.RoundedBox(5, 0, 0, bw, bh, hov and Color(60, 16, 12) or Color(25, 25, 25))
-        SWUI.DrawText('×', 'SWUI.Header', bw / 2, bh / 2,
-            hov and SWUI.Colors.Red or Color(100, 100, 100),
-            TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
-    end
-    btnClose.DoClick = function() frame:Remove() end
+    local panels = {}
 
-    -- ── Табы ─────────────────────────────────────────
-    local TABBAR_H = 42
-    local activeTab = 'chars'
-    local tabPanels = {}
+    SWUI.CreateTabBar(content, {
+        { id = 'chars',    label = 'ПЕРСОНАЖИ' },
+        { id = 'settings', label = 'НАСТРОЙКИ'  },
+    }, 0, 0, CW, 38, function(id)
+        for tid, pnl in pairs(panels) do pnl:SetVisible(tid == id) end
+    end)
 
-    local tabBar = vgui.Create('DPanel', frame)
-    tabBar:SetPos(0, TBAR)
-    tabBar:SetSize(SW, TABBAR_H)
-    tabBar.Paint = function(s, tw, th)
-        SWUI.DrawRoundedRect(0, 0, tw, th, 0, SWUI.Colors.Panel2)
-        surface.SetDrawColor(SWUI.Colors.Border)
-        surface.DrawRect(0, th - 1, tw, 1)
-    end
+    local TAB_Y  = 38
+    local BODY_H = SH - TBAR - TAB_Y
 
-    local tabDefs = {
-        { id = 'chars',    label = '🪖  ПЕРСОНАЖИ' },
-        { id = 'settings', label = '⚙  НАСТРОЙКИ'  },
-    }
-
-    local function SwitchTab(id)
-        activeTab = id
-        for n, p in pairs(tabPanels) do p:SetVisible(n == id) end
-    end
-
-    local tabX = 0
-    for _, td in ipairs(tabDefs) do
-        local tid = td.id
-        local btn = vgui.Create('DButton', tabBar)
-        btn:SetPos(tabX, 0)
-        btn:SetSize(180, TABBAR_H)
-        btn:SetText('')
-        btn.Paint = function(s, bw, bh)
-            local on = activeTab == tid
-            if on then
-                surface.SetDrawColor(Color(0, 184, 255, 12))
-                surface.DrawRect(0, 0, bw, bh)
-                surface.SetDrawColor(SWUI.Colors.Accent)
-                surface.DrawRect(0, bh - 2, bw, 2)
-            end
-            SWUI.DrawText(td.label, 'SWUI.Small', bw / 2, bh / 2,
-                on and SWUI.Colors.Accent or (s:IsHovered() and SWUI.Colors.Text or SWUI.Colors.TextDim),
-                TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+    local function MakeTab(visible)
+        local p = vgui.Create('DPanel', content)
+        p:SetPos(0, TAB_Y)
+        p:SetSize(CW, BODY_H)
+        p.Paint = function(s, pw, ph)
+            surface.SetDrawColor(6, 10, 16, 255)
+            surface.DrawRect(0, 0, pw, ph)
         end
-        btn.DoClick = function() SwitchTab(tid) end
-        tabX = tabX + 180
+        p:SetVisible(visible or false)
+        return p
     end
-
-    local CONTENT_Y = TBAR + TABBAR_H
-    local CONTENT_H = SH - CONTENT_Y
 
     -- ============================================================
     -- ТАБ ПЕРСОНАЖИ
     -- ============================================================
 
-    local panChars = vgui.Create('DPanel', frame)
-    panChars:SetPos(0, CONTENT_Y)
-    panChars:SetSize(SW, CONTENT_H)
-    panChars.Paint = function(s, pw, ph)
-        -- Тёмный фон с лёгким зеленоватым оттенком снизу (как в мокапе)
-        SWUI.DrawRoundedRect(0, 0, pw, ph, 0, Color(6, 10, 16))
+    local panChars = MakeTab(true)
+    panels['chars'] = panChars
 
-        -- Радиальный пол
-        local cx = pw / 2
-        for i = 80, 0, -1 do
-            local r = i / 80
-            surface.SetDrawColor(Color(0, 60, 100, math.floor((1 - r) * 20)))
-            local rw = r * 300
-            surface.DrawRect(cx - rw, ph - rw * 0.35, rw * 2, rw * 0.35)
-        end
-
-        -- Сетка пола
-        surface.SetDrawColor(Color(0, 184, 255, 6))
-        local gridH  = 140
-        local gridY0 = ph - gridH
-        local cell   = 44
-        for gx = 0, pw, cell do
-            surface.DrawLine(gx, gridY0, gx, ph)
-        end
-        for gy = gridY0, ph, math.floor(cell / 3) do
-            surface.DrawLine(0, gy, pw, gy)
-        end
-
-        -- Градиент сверху
-        for i = 0, 100 do
-            local a = math.floor((1 - i / 100) * 200)
-            surface.SetDrawColor(Color(6, 10, 16, a))
-            surface.DrawRect(0, i, pw, 1)
-        end
-
-        -- Градиент снизу
-        for i = 0, 130 do
-            local a = math.floor((i / 130) * 220)
-            surface.SetDrawColor(Color(6, 10, 16, a))
-            surface.DrawRect(0, ph - 130 + i, pw, 1)
-        end
-    end
-    tabPanels['chars'] = panChars
-
-    -- ── Верхний оверлей: имя/ранг/статус ─────────────
-    local overlayTop = vgui.Create('DPanel', panChars)
-    overlayTop:SetPos(0, 0)
-    overlayTop:SetSize(SW, 110)
-    overlayTop.Paint = function() end
-
-    local lblName = vgui.Create('DLabel', overlayTop)
-    lblName:SetPos(44, 18)
-    lblName:SetSize(SW / 2, 48)
+    -- ── Лейблы сверху слева ──────────────────────────────────
+    local lblName = vgui.Create('DLabel', panChars)
+    lblName:SetPos(24, 18)
+    lblName:SetSize(500, 40)
     lblName:SetFont('SWUI.Title')
     lblName:SetTextColor(SWUI.Colors.TextHi)
+    lblName:SetText('')
 
-    local lblRank = vgui.Create('DLabel', overlayTop)
-    lblRank:SetPos(44, 66)
-    lblRank:SetSize(SW / 2, 22)
+    local lblRank = vgui.Create('DLabel', panChars)
+    lblRank:SetPos(24, 58)
+    lblRank:SetSize(300, 20)
     lblRank:SetFont('SWUI.Small')
     lblRank:SetTextColor(SWUI.Colors.TextDim)
+    lblRank:SetText('')
 
-    local lblNumber = vgui.Create('DLabel', overlayTop)
-    lblNumber:SetPos(44, 87)
-    lblNumber:SetSize(SW / 2, 18)
+    local lblNumber = vgui.Create('DLabel', panChars)
+    lblNumber:SetPos(24, 78)
+    lblNumber:SetSize(300, 18)
     lblNumber:SetFont('SWUI.Mono')
     lblNumber:SetTextColor(SWUI.Colors.TextDim)
+    lblNumber:SetText('')
 
-    -- Статус-бейдж
-    local badgePnl = vgui.Create('DPanel', overlayTop)
-    badgePnl:SetPos(SW - 200, 20)
-    badgePnl:SetSize(160, 32)
+    -- ── Статус-бейдж ─────────────────────────────────────────
     local bActive = false
-    badgePnl.Paint = function(s, bw, bh)
-        local bc  = bActive and Color(0, 238, 119, 20)   or Color(255, 255, 255, 8)
-        local brd = bActive and Color(0, 238, 119, 80)   or SWUI.Colors.Border
-        local col = bActive and SWUI.Colors.Green         or SWUI.Colors.TextDim
-        local txt = bActive and 'АКТИВЕН'                 or 'НЕ АКТИВЕН'
-        draw.RoundedBox(16, 0, 0, bw, bh, bc)
-        surface.SetDrawColor(brd)
-        surface.DrawOutlinedRect(0, 0, bw, bh, 1)
+    local badgePnl = vgui.Create('DPanel', panChars)
+    badgePnl:SetSize(160, 30)
+    badgePnl.Paint = function(s, w, h)
+        local col = bActive and SWUI.Colors.Green or SWUI.Colors.TextDim
+        draw.RoundedBox(15, 0, 0, w, h, Color(col.r, col.g, col.b, 18))
+        surface.SetDrawColor(col.r, col.g, col.b, 80)
+        surface.DrawOutlinedRect(0, 0, w, h, 1)
         if bActive then
             local blink = 0.5 + math.abs(math.sin(CurTime() * 2.5)) * 0.5
-            draw.RoundedBox(3, 12, bh / 2 - 3, 6, 6, Color(0, 238, 119, math.floor(blink * 255)))
+            draw.RoundedBox(3, 10, h/2-3, 6, 6, Color(0, 238, 119, math.floor(blink*255)))
         else
-            draw.RoundedBox(3, 12, bh / 2 - 3, 6, 6, SWUI.Colors.TextDim)
+            draw.RoundedBox(3, 10, h/2-3, 6, 6, col)
         end
-        SWUI.DrawText(txt, 'SWUI.Tiny', 26, bh / 2, col, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
+        SWUI.DrawText(bActive and 'АКТИВЕН' or 'НЕ АКТИВЕН', 'SWUI.Tiny',
+            24, h/2, col, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
     end
 
-    -- ── Модель игрока по центру (DModelPanel) ─────────────────
-    local DEFAULT_MODEL = 'models/player/combine_super_soldier.mdl'
+    -- ── DModelPanel ──────────────────────────────────────────
+    -- Используем TDLib как в cl_body.lua
+    local modelIcon = TDLib('DModelPanel', panChars)
+    modelIcon:SetSize(500, 700)
+    modelIcon:SetModel(DEFAULT_MODEL)
+    modelIcon:SetFOV(25)
+    -- Камера: смотрим на центр тела (Z=60 = примерно грудь), отдаление по X
+    modelIcon:SetLookAt(Vector(0, 0, 60))
+    modelIcon:SetCamPos(Vector(100, 0, 60))
+    modelIcon:SetAmbientLight(Color(100, 140, 180))
+    modelIcon:SetDirectionalLight(BOX_FRONT,  Color(200, 230, 255))
+    modelIcon:SetDirectionalLight(BOX_LEFT,   Color(50,  110, 190))
+    modelIcon:SetDirectionalLight(BOX_BOTTOM, Color(20,  50,  90))
 
-    local modelPnl = vgui.Create('DModelPanel', panChars)
-    modelPnl:SetSize(320, 480)
-    modelPnl:SetModel(DEFAULT_MODEL)
-    modelPnl:SetFOV(45)
-    modelPnl:SetAmbientLight(Color(40, 60, 80))
-    modelPnl:SetDirectionalLight(BOX_FRONT,  Color(100, 180, 255))
-    modelPnl:SetDirectionalLight(BOX_LEFT,   Color(20,  60,  100))
-    modelPnl:SetDirectionalLight(BOX_BOTTOM, Color(10,  30,  50))
-
-    function modelPnl:LayoutEntity(ent)
-        ent:SetAngles(Angle(0, 180, 0))
+    -- Автовращение
+    function modelIcon:LayoutEntity(ent)
+        ent:SetAngles(Angle(0, CurTime() * 30, 0))
     end
+    modelIcon:SetVisible(false)
 
-    modelPnl.Paint = function(s, mw, mh) end
-
-    -- Пустой слот — заглушка
+    -- ── Пустой слот-заглушка ─────────────────────────────────
     local emptyPnl = vgui.Create('DPanel', panChars)
     emptyPnl:SetSize(200, 300)
-    emptyPnl.Paint = function(s, cw, ch)
-        SWUI.DrawRoundedRect(cw / 2 - 44, 30,  88, 64,  8, Color(20, 30, 40))
-        SWUI.DrawRoundedRect(cw / 2 - 44, 100, 88, 85,  8, Color(20, 30, 40))
-        SWUI.DrawRoundedRect(cw / 2 - 40, 190, 80, 78,  8, Color(20, 30, 40))
-        SWUI.DrawText('+', 'SWUI.Title', cw / 2, ch / 2, SWUI.Colors.BorderHi,
-            TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+    emptyPnl.Paint = function(s, w, h)
+        draw.RoundedBox(8, w/2-48, 24,  96, 72,  Color(12, 20, 30))
+        draw.RoundedBox(8, w/2-48, 104, 96, 90,  Color(12, 20, 30))
+        draw.RoundedBox(8, w/2-44, 202, 88, 76,  Color(12, 20, 30))
+        SWUI.DrawText('+', 'SWUI.Title', w/2, h/2, SWUI.Colors.BorderHi, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
     end
     emptyPnl:SetVisible(false)
 
-    local clonePnl = modelPnl
+    -- ── Правая инфо-панель ────────────────────────────────────
+    local IW, IH = 260, 380
+    local infoPnl = vgui.Create('DPanel', panChars)
+    infoPnl:SetSize(IW, IH)
+    infoPnl.Paint = function(s, w, h)
+        draw.RoundedBox(10, 0, 0, w, h, Color(8, 13, 22, 230))
+        surface.SetDrawColor(SWUI.Colors.Border.r, SWUI.Colors.Border.g, SWUI.Colors.Border.b, 255)
+        surface.DrawOutlinedRect(0, 0, w, h, 1)
+        surface.SetDrawColor(SWUI.Colors.Accent.r, SWUI.Colors.Accent.g, SWUI.Colors.Accent.b, 255)
+        surface.DrawRect(1, 0, w-2, 2)
+    end
+    infoPnl:SetVisible(false)
 
-    -- ── Стрелки навигации ─────────────────────────────
-    local function NavArrow(side)
-        local btn = vgui.Create('DButton', panChars)
-        btn:SetSize(52, 52)
-        btn:SetText('')
-        btn.Paint = function(s, bw, bh)
-            local hov = s:IsHovered()
-            draw.RoundedBox(26, 0, 0, bw, bh, Color(0, 0, 0, 140))
-            surface.SetDrawColor(hov and SWUI.Colors.Accent or SWUI.Colors.BorderHi)
-            surface.DrawOutlinedRect(0, 0, bw, bh, 1)
-            SWUI.DrawText(side == 'l' and '◄' or '►', 'SWUI.Small', bw / 2, bh / 2,
-                hov and SWUI.Colors.Accent or SWUI.Colors.TextDim,
-                TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+    SWUI.CreateSectionHeader(infoPnl, 'ДОСЬЕ КЛОНА', 0, 0, IW)
+
+    local function InfoRow(parent, yy, caption)
+        local row = vgui.Create('DPanel', parent)
+        row:SetPos(0, yy); row:SetSize(IW, 36)
+        row.Paint = function(s, w, h)
+            surface.SetDrawColor(255, 255, 255, 3)
+            surface.DrawRect(0, 0, w, h)
+            surface.SetDrawColor(SWUI.Colors.Border.r, SWUI.Colors.Border.g, SWUI.Colors.Border.b, 80)
+            surface.DrawLine(12, h-1, w-12, h-1)
         end
-        return btn
+        local lbl = vgui.Create('DLabel', row)
+        lbl:SetPos(12, 0); lbl:SetSize(100, 36)
+        lbl:SetFont('SWUI.Tiny'); lbl:SetTextColor(SWUI.Colors.TextDim)
+        lbl:SetText(caption); lbl:SetContentAlignment(4)
+        local val = vgui.Create('DLabel', row)
+        val:SetPos(110, 0); val:SetSize(IW-122, 36)
+        val:SetFont('SWUI.Small'); val:SetTextColor(SWUI.Colors.TextHi)
+        val:SetText('—'); val:SetContentAlignment(6)
+        return val
     end
 
-    local navL = NavArrow('l')
-    local navR = NavArrow('r')
-    navL.DoClick = function() SWExp.F4:Navigate(-1) end
-    navR.DoClick = function() SWExp.F4:Navigate(1) end
+    local valNum  = InfoRow(infoPnl, 30,  'НОМЕР')
+    local valCs   = InfoRow(infoPnl, 66,  'ПОЗЫВНОЙ')
+    local valRnk  = InfoRow(infoPnl, 102, 'ЗВАНИЕ')
+    local valStat = InfoRow(infoPnl, 138, 'СТАТУС')
 
-    -- ── Нижний оверлей: кнопки + точки ───────────────
-    local overlayBot = vgui.Create('DPanel', panChars)
-    overlayBot.Paint = function() end
+    -- XP
+    local xpFrac = 0
+    local xpHdr = vgui.Create('DLabel', infoPnl)
+    xpHdr:SetPos(12, 182); xpHdr:SetSize(IW-24, 14)
+    xpHdr:SetFont('SWUI.Tiny'); xpHdr:SetTextColor(SWUI.Colors.TextDim); xpHdr:SetText('ОПЫТ')
 
-    -- Точки-навигация
-    local dotPnl = vgui.Create('DPanel', overlayBot)
+    local xpBar = SWUI.CreateProgressBar(infoPnl, 12, 198, IW-24, 8, SWUI.Colors.Accent)
+
+    local xpSub = vgui.Create('DLabel', infoPnl)
+    xpSub:SetPos(12, 208); xpSub:SetSize(IW-24, 14)
+    xpSub:SetFont('SWUI.Tiny'); xpSub:SetTextColor(SWUI.Colors.TextDim); xpSub:SetText('')
+
+    SWUI.DrawDivider(12, 232, IW-24, SWUI.Colors.Border)
+
+    local iBattalion = vgui.Create('DLabel', infoPnl)
+    iBattalion:SetPos(12, 240); iBattalion:SetSize(IW-24, 14)
+    iBattalion:SetFont('SWUI.Tiny'); iBattalion:SetTextColor(SWUI.Colors.TextDim)
+    iBattalion:SetText('ВЕЛИКАЯ АРМИЯ РЕСПУБЛИКИ')
+
+    local iDesc = vgui.Create('DLabel', infoPnl)
+    iDesc:SetPos(12, 258); iDesc:SetSize(IW-24, 60)
+    iDesc:SetFont('SWUI.Tiny'); iDesc:SetTextColor(Color(90, 120, 145))
+    iDesc:SetText('Клон-троопер Звёздного Корпуса.\nСлужит Республике по велению долга.')
+    iDesc:SetWrap(true)
+
+    local iSlots = vgui.Create('DLabel', infoPnl)
+    iSlots:SetPos(12, IH-24); iSlots:SetSize(IW-24, 16)
+    iSlots:SetFont('SWUI.Tiny'); iSlots:SetTextColor(SWUI.Colors.TextDim); iSlots:SetText('')
+
+    -- ── Навигационные стрелки ─────────────────────────────────
+    local navL = SWUI.CreateButton(panChars, '◄', 0, 0, 44, 44, 'ghost')
+    local navR = SWUI.CreateButton(panChars, '►', 0, 0, 44, 44, 'ghost')
+    navL.DoClick = function() SWExp.F4:Go(((nCurrent - 2) % #tChars) + 1) end
+    navR.DoClick = function() SWExp.F4:Go((nCurrent % #tChars) + 1) end
+
+    -- ── Точки-индикаторы ─────────────────────────────────────
+    local dotPnl = vgui.Create('DPanel', panChars)
     dotPnl.Paint = function() end
     local dots = {}
 
     local function RebuildDots()
         for _, d in ipairs(dots) do if IsValid(d) then d:Remove() end end
         dots = {}
-        dotPnl:SetSize(#tChars * 26, 14)
+        dotPnl:SetSize(#tChars * 24, 12)
         for i = 1, #tChars do
             local d = vgui.Create('DButton', dotPnl)
-            d:SetPos((i - 1) * 26, 0)
-            d:SetSize(14, 14)
-            d:SetText('')
-            local idx = i
+            d:SetPos((i-1)*24, 0); d:SetSize(12, 12); d:SetText('')
+            local ii = i
             d.Paint = function(s, dw, dh)
-                if i == nCurrent then
-                    draw.RoundedBox(3, 0, dh / 2 - 3, 18, 6, SWUI.Colors.Accent)
+                if ii == nCurrent then
+                    draw.RoundedBox(3, 0, dh/2-3, 16, 6, SWUI.Colors.Accent)
                 else
-                    draw.RoundedBox(3, dw / 2 - 3, dh / 2 - 3, 6, 6, SWUI.Colors.BorderHi)
+                    draw.RoundedBox(6, dw/2-4, dh/2-4, 8, 8, SWUI.Colors.BorderHi)
                 end
             end
-            d.DoClick = function() SWExp.F4:GoTo(idx) end
+            d.DoClick = function() SWExp.F4:Go(ii) end
             dots[i] = d
         end
     end
 
-    -- Ряд кнопок действий
-    local btnRowPnl = vgui.Create('DPanel', overlayBot)
-    btnRowPnl:SetSize(SW, 44)
+    -- ── Кнопки действий ──────────────────────────────────────
+    local btnRowPnl = vgui.Create('DPanel', panChars)
+    btnRowPnl:SetSize(CW, 48)
     btnRowPnl.Paint = function() end
 
-    -- ── Панель создания нового персонажа ──────────────
+    -- ── Панель создания персонажа ─────────────────────────────
     local panCreate = vgui.Create('DPanel', panChars)
     panCreate:SetSize(400, 210)
-    panCreate.Paint = function(s, cw, ch)
-        SWUI.DrawRoundedRect(0, 0, cw, ch, 10, Color(11, 15, 21, 245))
-        surface.SetDrawColor(SWUI.Colors.BorderHi)
-        surface.DrawOutlinedRect(0, 0, cw, ch, 1)
-        SWUI.DrawText('НОВЫЙ ПЕРСОНАЖ', 'SWUI.Tiny', cw / 2, 16,
-            SWUI.Colors.TextDim, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+    panCreate.Paint = function(s, pw, ph)
+        draw.RoundedBox(10, 0, 0, pw, ph, Color(10, 15, 24, 248))
+        surface.SetDrawColor(SWUI.Colors.Border.r, SWUI.Colors.Border.g, SWUI.Colors.Border.b, 255)
+        surface.DrawOutlinedRect(0, 0, pw, ph, 1)
+        surface.SetDrawColor(SWUI.Colors.Accent.r, SWUI.Colors.Accent.g, SWUI.Colors.Accent.b, 255)
+        surface.DrawRect(1, 0, pw-2, 2)
+        SWUI.DrawText('НОВЫЙ КЛОН', 'SWUI.Tiny', pw/2, 12, SWUI.Colors.TextDim, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
     end
     panCreate:SetVisible(false)
 
-    local inpNumber   = SWUI.CreateInput(panCreate, 20, 36,  360, 38, 'Номер (CT-XXXX)')
-    local inpCallsign = SWUI.CreateInput(panCreate, 20, 86,  360, 38, 'Позывной (ПРИЗРАК)')
+    local inpNum = SWUI.CreateInput(panCreate, 16, 28, 368, 38, 'Номер (CT-1104)')
+    local inpCs  = SWUI.CreateInput(panCreate, 16, 74, 368, 38, 'Позывной (ПРИЗРАК)')
 
     local lblErr = vgui.Create('DLabel', panCreate)
-    lblErr:SetPos(20, 132)
-    lblErr:SetSize(360, 18)
-    lblErr:SetFont('SWUI.Tiny')
-    lblErr:SetTextColor(SWUI.Colors.Red)
-    lblErr:SetText('')
+    lblErr:SetPos(16, 120); lblErr:SetSize(368, 16)
+    lblErr:SetFont('SWUI.Tiny'); lblErr:SetTextColor(Color(220, 60, 60)); lblErr:SetText('')
 
-    SWUI.CreateButton(panCreate, 'СОЗДАТЬ', 20, 158, 160, 36, 'accent', function()
-        local num = string.upper(string.Trim(inpNumber:GetValue()))
-        local cs  = string.upper(string.Trim(inpCallsign:GetValue()))
-        if num == '' or cs == '' then lblErr:SetText('Заполните все поля') return end
-        netstream.Start('SWExp::CreateChar', { clone_number = num, callsign = cs })
+    SWUI.CreateButton(panCreate, 'СОЗДАТЬ', 16, 144, 172, 38, 'accent', function()
+        local n = string.upper(string.Trim(inpNum:GetValue()))
+        local c = string.upper(string.Trim(inpCs:GetValue()))
+        if n == '' or c == '' then lblErr:SetText('Заполните все поля') return end
+        lblErr:SetText('')
+        netstream.Start('SWExp::CreateChar', { clone_number = n, callsign = c })
         panCreate:SetVisible(false)
     end)
 
-    SWUI.CreateButton(panCreate, 'ОТМЕНА', 192, 158, 120, 36, 'ghost', function()
+    SWUI.CreateButton(panCreate, 'ОТМЕНА', 200, 144, 132, 38, 'ghost', function()
         panCreate:SetVisible(false)
     end)
 
-    -- ── Главная функция обновления UI ─────────────────
+    -- ============================================================
+    -- UpdateUI — обновляет всё под текущий nCurrent
+    -- ============================================================
+
     function SWExp.F4:UpdateUI()
         local char = tChars[nCurrent]
 
-        -- Позиции
-        -- Центрируем модель
-        modelPnl:SetPos(SW / 2 - 160, CONTENT_H / 2 - 240)
-        emptyPnl:SetPos(SW / 2 - 100, CONTENT_H / 2 - 150)
+        -- позиционирование по центру контента
+        local cx = CW / 2
+        local cy = BODY_H / 2
 
-        local char = tChars[nCurrent]
-        if IsEmpty(char) then
-            modelPnl:SetVisible(false)
-            emptyPnl:SetVisible(true)
-        else
-            modelPnl:SetVisible(true)
-            emptyPnl:SetVisible(false)
-            -- Модель берём прямо из таблицы персонажа (сервер уложил её туда)
-            local mdl = char.model or DEFAULT_MODEL
-            if modelPnl:GetModel() ~= mdl then
-                modelPnl:SetModel(mdl)
-            end
-        end
-        navL:SetPos(36, CONTENT_H / 2 - 26)
-        navR:SetPos(SW - 88, CONTENT_H / 2 - 26)
-
-        overlayBot:SetPos(0, CONTENT_H - 120)
-        overlayBot:SetSize(SW, 120)
-        btnRowPnl:SetPos(0, 10)
+        modelIcon:SetPos(cx - 250, cy - 350)
+        emptyPnl:SetPos(cx - 100, cy - 150)
+        infoPnl:SetPos(cx + 200, cy - 190)
+        badgePnl:SetPos(CW - 180, 18)
+        navL:SetPos(16, cy - 22)
+        navR:SetPos(CW - 60, cy - 22)
+        btnRowPnl:SetPos(0, BODY_H - 56)
 
         RebuildDots()
-        dotPnl:SetPos(SW / 2 - #tChars * 13, 74)
+        dotPnl:SetPos(cx - #tChars * 12, BODY_H - 72)
 
-        -- Чистим кнопки
+        -- чистим кнопки
         for _, c in ipairs(btnRowPnl:GetChildren()) do c:Remove() end
 
         if IsEmpty(char) then
+            modelIcon:SetVisible(false)
+            emptyPnl:SetVisible(true)
+            infoPnl:SetVisible(false)
+            badgePnl:SetVisible(false)
+
             lblName:SetText('+ НОВЫЙ КЛОН')
             lblRank:SetText('')
-            lblNumber:SetText('— — —')
+            lblNumber:SetText('')
             bActive = false
-            panCreate:SetPos(SW / 2 - 200, CONTENT_H / 2 - 105)
+
+            panCreate:SetPos(cx - 200, cy - 105)
             panCreate:SetVisible(true)
         else
             panCreate:SetVisible(false)
+            modelIcon:SetVisible(true)
+            emptyPnl:SetVisible(false)
+            infoPnl:SetVisible(true)
+            badgePnl:SetVisible(true)
+
             lblName:SetText(char.callsign or '???')
-            lblRank:SetText(char['rank'] or 'CT')
+            lblRank:SetText(char['rank'] or '')
             lblNumber:SetText(char.clone_number or '')
-            bActive = (tonumber(char.id) == nActive)
 
-            -- Кнопки по центру
-            local btnW   = 150
-            local gap    = 12
-            local count  = bActive and 2 or 3
-            local totalW = count * btnW + (count - 1) * gap
-            local startX = SW / 2 - totalW / 2
+            local isAct = tonumber(char.id) == nActive
+            bActive = isAct
 
-            if bActive then
-                SWUI.CreateButton(btnRowPnl, '● ИГРАЮ СЕЙЧАС', startX, 0, btnW + 30, 44, 'ghost')
-                local b2 = SWUI.CreateButton(btnRowPnl, 'ПЕРЕИМЕНОВАТЬ',
-                    startX + btnW + 30 + gap, 0, btnW, 44, 'ghost')
+            valNum:SetText(char.clone_number or '—')
+            valCs:SetText(char.callsign or '—')
+            valRnk:SetText(char['rank'] or '—')
+            valStat:SetText(isAct and 'АКТИВЕН' or 'В РЕЗЕРВЕ')
+            valStat:SetTextColor(isAct and SWUI.Colors.Green or SWUI.Colors.TextDim)
+
+            local exp = tonumber(char.exp) or 0
+            xpFrac = math.Clamp(exp / 1000, 0, 1)
+            xpBar:SetValue(exp, 1000)
+            xpHdr:SetText('ОПЫТ  ' .. exp .. ' XP')
+            xpSub:SetText(exp .. ' / 1000 до следующего уровня')
+
+            local used = 0
+            for _, c in ipairs(tChars) do if not c._empty then used = used + 1 end end
+            iSlots:SetText('СЛОТЫ: ' .. used .. ' / ' .. GetSlots())
+
+            -- кнопки действий
+            local bW, gap = 148, 10
+            local count   = isAct and 2 or 3
+            local totalW  = count * bW + (count-1) * gap + (isAct and 22 or 0)
+            local sx      = CW/2 - totalW/2
+
+            if isAct then
+                SWUI.CreateButton(btnRowPnl, '● АКТИВЕН', sx, 4, bW+22, 40, 'ghost')
+                local b2 = SWUI.CreateButton(btnRowPnl, 'ПЕРЕИМЕНОВАТЬ', sx+bW+22+gap, 4, bW, 40, 'ghost')
                 b2.DoClick = function()
-                    Derma_StringRequest('Изменение позывного', 'Новый позывной:', char.callsign or '',
-                        function(v) if v and v ~= '' then
-                            netstream.Start('SWExp::RenameChar', tonumber(char.id), v)
-                        end end)
+                    Derma_StringRequest('Позывной', 'Новый позывной:', char.callsign or '',
+                        function(v) if v ~= '' then netstream.Start('SWExp::RenameChar', tonumber(char.id), v) end end)
                 end
             else
-                local b1 = SWUI.CreateButton(btnRowPnl, 'ВЫБРАТЬ', startX, 0, btnW, 44, 'accent')
+                local b1 = SWUI.CreateButton(btnRowPnl, 'ВЫБРАТЬ', sx, 4, bW, 40, 'accent')
                 b1.DoClick = function()
                     netstream.Start('SWExp::ChooseChar', tonumber(char.id))
-                    frame:Remove()
+                    frame:Close()
                 end
-
-                local b2 = SWUI.CreateButton(btnRowPnl, 'ПЕРЕИМЕНОВАТЬ',
-                    startX + btnW + gap, 0, btnW, 44, 'ghost')
+                local b2 = SWUI.CreateButton(btnRowPnl, 'ПЕРЕИМЕНОВАТЬ', sx+bW+gap, 4, bW, 40, 'ghost')
                 b2.DoClick = function()
-                    Derma_StringRequest('Изменение позывного', 'Новый позывной:', char.callsign or '',
-                        function(v) if v and v ~= '' then
-                            netstream.Start('SWExp::RenameChar', tonumber(char.id), v)
-                        end end)
+                    Derma_StringRequest('Позывной', 'Новый позывной:', char.callsign or '',
+                        function(v) if v ~= '' then netstream.Start('SWExp::RenameChar', tonumber(char.id), v) end end)
                 end
-
-                local b3 = SWUI.CreateButton(btnRowPnl, 'УДАЛИТЬ',
-                    startX + (btnW + gap) * 2, 0, btnW, 44, 'danger')
+                local b3 = SWUI.CreateButton(btnRowPnl, 'УДАЛИТЬ', sx+(bW+gap)*2, 4, bW, 40, 'danger')
                 b3.DoClick = function()
                     Derma_Query('Удалить ' .. (char.callsign or '') .. '?', 'Подтверждение',
-                        'Удалить', function()
-                            netstream.Start('SWExp::DeleteChar', tonumber(char.id))
-                        end,
+                        'Удалить', function() netstream.Start('SWExp::DeleteChar', tonumber(char.id)) end,
                         'Отмена', function() end)
                 end
             end
         end
     end
 
-    -- ── Навигация ─────────────────────────────────────
-    function SWExp.F4:Navigate(dir)
-        self:GoTo(((nCurrent - 1 + dir) % #tChars) + 1)
-    end
-
-    function SWExp.F4:GoTo(idx)
+    function SWExp.F4:Go(idx)
         nCurrent = math.Clamp(idx, 1, math.max(1, #tChars))
         self:UpdateUI()
     end
@@ -479,117 +426,80 @@ function SWExp.F4:Open(tCharacters)
     -- ТАБ НАСТРОЙКИ
     -- ============================================================
 
-    local panSettings = vgui.Create('DPanel', frame)
-    panSettings:SetPos(0, CONTENT_Y)
-    panSettings:SetSize(SW, CONTENT_H)
-    panSettings:SetVisible(false)
-    panSettings.Paint = function(s, pw, ph)
-        SWUI.DrawRoundedRect(0, 0, pw, ph, 0, SWUI.Colors.PanelBG)
-    end
-    tabPanels['settings'] = panSettings
+    local panSettings = MakeTab(false)
+    panels['settings'] = panSettings
 
-    local scroll = SWUI.CreateScrollList(panSettings, SW / 2 - 300, 32, 600, CONTENT_H - 64)
+    local scroll = SWUI.CreateScrollList(panSettings, CW/2 - 280, 20, 560, BODY_H - 40)
 
-    local function SettGroup(text)
-        local lbl = vgui.Create('DLabel', scroll)
-        lbl:Dock(TOP)
-        lbl:DockMargin(0, 14, 0, 6)
-        lbl:SetTall(18)
-        lbl:SetFont('SWUI.Tiny')
-        lbl:SetTextColor(SWUI.Colors.TextDim)
-        lbl:SetText(string.upper(text))
+    local function SGroup(txt)
+        local l = vgui.Create('DLabel', scroll)
+        l:Dock(TOP); l:DockMargin(0, 12, 0, 4); l:SetTall(16)
+        l:SetFont('SWUI.Tiny'); l:SetTextColor(SWUI.Colors.TextDim)
+        l:SetText(string.upper(txt))
     end
 
-    local function SettRow(label, desc)
+    local function SRow(label, desc)
         local row = vgui.Create('DPanel', scroll)
-        row:Dock(TOP)
-        row:DockMargin(0, 0, 0, 4)
-        row:SetTall(desc and 60 or 46)
-        row.Paint = function(s, rw, rh)
-            SWUI.DrawRoundedRect(0, 0, rw, rh, 8, Color(0, 0, 0, 60))
-            surface.SetDrawColor(SWUI.Colors.Border)
-            surface.DrawOutlinedRect(0, 0, rw, rh, 1)
+        row:Dock(TOP); row:DockMargin(0, 0, 0, 4); row:SetTall(desc and 54 or 42)
+        row.Paint = function(s, w, h)
+            draw.RoundedBox(8, 0, 0, w, h, Color(0, 0, 0, 50))
+            surface.SetDrawColor(SWUI.Colors.Border.r, SWUI.Colors.Border.g, SWUI.Colors.Border.b, 255)
+            surface.DrawOutlinedRect(0, 0, w, h, 1)
         end
-
-        local lbl = vgui.Create('DLabel', row)
-        lbl:SetPos(16, desc and 10 or 13)
-        lbl:SetSize(440, 20)
-        lbl:SetFont('SWUI.Body')
-        lbl:SetTextColor(SWUI.Colors.Text)
-        lbl:SetText(label)
-
+        local l = vgui.Create('DLabel', row)
+        l:SetPos(14, desc and 7 or 11); l:SetSize(460, 20)
+        l:SetFont('SWUI.Body'); l:SetTextColor(SWUI.Colors.Text); l:SetText(label)
         if desc then
-            local sub = vgui.Create('DLabel', row)
-            sub:SetPos(16, 32)
-            sub:SetSize(440, 16)
-            sub:SetFont('SWUI.Tiny')
-            sub:SetTextColor(SWUI.Colors.TextDim)
-            sub:SetText(desc)
+            local s2 = vgui.Create('DLabel', row)
+            s2:SetPos(14, 28); s2:SetSize(460, 16)
+            s2:SetFont('SWUI.Tiny'); s2:SetTextColor(SWUI.Colors.TextDim); s2:SetText(desc)
         end
-
-        local tog = vgui.Create('DCheckBox', row)
-        tog:SetPos(row:GetWide() - 52, row:GetTall() / 2 - 11)
-        tog:SetSize(38, 22)
-        tog:SetValue(true)
-        tog.Paint = function(s, tw, th)
+        local cb = vgui.Create('DCheckBox', row)
+        cb:SetPos(row:GetWide() - 50, row:GetTall()/2 - 10); cb:SetSize(36, 20); cb:SetValue(true)
+        cb.Paint = function(s, cw, ch)
             local on = s:GetChecked()
-            draw.RoundedBox(11, 0, 0, tw, th, on and SWUI.Colors.AccentDim or Color(255, 255, 255, 20))
-            surface.SetDrawColor(on and SWUI.Colors.Accent or SWUI.Colors.Border)
-            surface.DrawOutlinedRect(0, 0, tw, th, 1)
-            draw.RoundedBox(8, on and tw - 19 or 2, 3, 16, 16,
-                on and SWUI.Colors.Accent or Color(80, 80, 80))
+            draw.RoundedBox(10, 0, 0, cw, ch, on and SWUI.Colors.AccentDim or Color(255,255,255,15))
+            surface.SetDrawColor(SWUI.Colors.Accent.r, SWUI.Colors.Accent.g, SWUI.Colors.Accent.b, on and 200 or 60)
+            surface.DrawOutlinedRect(0, 0, cw, ch, 1)
+            draw.RoundedBox(7, on and cw-18 or 2, 3, 15, 14, on and SWUI.Colors.Accent or Color(70,70,70))
         end
-        return row
     end
 
-    SettGroup('Звук')
-    SettRow('Звуки интерфейса', 'Звуки при открытии меню и взаимодействии')
-    SettRow('Громкость геймода')
-
-    SettGroup('HUD')
-    SettRow('Показывать компас')
-    SettRow('Показывать подсказки сканирования', 'Текст мыслей клона над объектами')
-
-    SettGroup('Прочее')
-    SettRow('Уведомления об уровне прогресса')
-
-    SwitchTab('chars')
+    SGroup('Звук')
+    SRow('Звуки интерфейса', 'Звуки при открытии меню и взаимодействии')
+    SRow('Громкость игрового модуля')
+    SGroup('HUD')
+    SRow('Показывать компас')
+    SRow('Показывать подсказки сканирования', 'Текст над сканируемыми объектами')
+    SGroup('Прочее')
+    SRow('Уведомления об уровне прогресса')
 end
 
 -- ============================================================
--- Refresh
+-- Refresh / Netstream / F4
 -- ============================================================
 
 function SWExp.F4:Refresh(tNew)
     tChars = tNew or {}
-    local slots = LocalPlayer().SWExp_CharSlots or 1
-    if #tChars < slots then tChars[#tChars + 1] = { _empty = true } end
+    if #tChars < GetSlots() then tChars[#tChars + 1] = { _empty = true } end
     nCurrent = math.Clamp(nCurrent, 1, math.max(1, #tChars))
     if IsValid(self.Frame) then self:UpdateUI() else self:Open(tNew) end
 end
-
--- ============================================================
--- Netstream
--- ============================================================
 
 netstream.Hook('SWExp::OpenCharSelect', function(t)
     if IsValid(SWExp.F4.Frame) then SWExp.F4:Refresh(t) else SWExp.F4:Open(t) end
 end)
 
 netstream.Hook('SWExp::CharSelected', function()
-    if IsValid(SWExp.F4.Frame) then SWExp.F4.Frame:Remove() end
+    if IsValid(SWExp.F4.Frame) then SWExp.F4.Frame:Close() end
 end)
 
 netstream.Hook('SWExp::CharError', function(msg)
     notification.AddLegacy('Ошибка: ' .. (msg or ''), NOTIFY_ERROR, 4)
 end)
 
--- ============================================================
--- F4
--- ============================================================
-
 hook.Add('PlayerButtonDown', 'SWExp::F4Key', function(ply, btn)
     if btn ~= KEY_F4 then return end
-    if IsValid(SWExp.F4.Frame) then SWExp.F4.Frame:Remove() return end
+    if IsValid(SWExp.F4.Frame) then SWExp.F4.Frame:Close() return end
     netstream.Start('SWExp::RequestChars')
 end)

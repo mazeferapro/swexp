@@ -1,29 +1,26 @@
--- modules/chars/sv_chars.lua
+-- modules/sv_chars.lua
 -- Система персонажей SWExp
--- Персонаж: clone_number (CT-XXXX), callsign (позывной), rank (звание)
 
 if CLIENT then return end
 
 SWExp.Chars = SWExp.Chars or {}
 
 -- ============================================================
--- Загрузка персонажей игрока из БД
+-- Стартовый ранг и модель по умолчанию
 -- ============================================================
 
-
+local START_RANK    = 'TRP'
 local DEFAULT_MODEL = 'models/player/combine_super_soldier.mdl'
 
+-- Модель персонажа — всегда одна стандартная.
+-- Броня будет менять модель отдельной системой позже.
 function SWExp.Chars:GetModelForRank(rank)
-    -- Если джобы totrlw доступны в shared — берём оттуда
-    if NextRP and NextRP.Jobs then
-        for _, job in pairs(NextRP.Jobs) do
-            if job.ranks and job.ranks[rank] and job.ranks[rank].model then
-                return job.ranks[rank].model[1] or DEFAULT_MODEL
-            end
-        end
-    end
     return DEFAULT_MODEL
 end
+
+-- ============================================================
+-- Загрузка персонажей игрока из БД
+-- ============================================================
 
 function SWExp.Chars:Load(pPlayer, cb)
     local playerID = pPlayer.SWExp_ID
@@ -34,7 +31,6 @@ function SWExp.Chars:Load(pPlayer, cb)
             MySQLite.SQLStr(playerID)),
         function(tRows)
             tRows = tRows or {}
-            -- Добавляем модель к каждому персонажу на основе ранга
             for _, char in ipairs(tRows) do
                 char.model = SWExp.Chars:GetModelForRank(char['rank'])
             end
@@ -81,14 +77,17 @@ function SWExp.Chars:Create(pPlayer, sNumber, sCallsign, cb)
                 return
             end
 
-            -- Вставляем
+            -- Стартовый ранг берём из конфига, fallback → TRP
+            local startRank = START_RANK
+            local startModel = SWExp.Chars:GetModelForRank(startRank)
+
             MySQLite.query(
                 string.format(
                     'INSERT INTO `swexp_characters` (player_id, clone_number, callsign, `rank`) VALUES (%s, %s, %s, %s);',
                     MySQLite.SQLStr(playerID),
                     MySQLite.SQLStr(sNumber),
                     MySQLite.SQLStr(sCallsign),
-                    MySQLite.SQLStr('CT')
+                    MySQLite.SQLStr(startRank)
                 ),
                 function(_, insertID)
                     local newChar = {
@@ -96,8 +95,8 @@ function SWExp.Chars:Create(pPlayer, sNumber, sCallsign, cb)
                         player_id    = playerID,
                         clone_number = sNumber,
                         callsign     = sCallsign,
-                        ['rank']     = 'CT',
-                        model        = SWExp.Chars:GetModelForRank('CT'),
+                        ['rank']     = startRank,
+                        model        = startModel,
                     }
 
                     pPlayer.SWExp_Characters = pPlayer.SWExp_Characters or {}
@@ -120,12 +119,11 @@ function SWExp.Chars:Delete(pPlayer, nCharID, cb)
     if not IsValid(pPlayer) then return end
 
     -- Нельзя удалить активного
-    if pPlayer.SWExp_ActiveChar and pPlayer.SWExp_ActiveChar.id == nCharID then
+    if pPlayer.SWExp_ActiveChar and tonumber(pPlayer.SWExp_ActiveChar.id) == tonumber(nCharID) then
         if cb then cb(false, 'Нельзя удалить активного персонажа') end
         return
     end
 
-    -- Проверяем что персонаж принадлежит игроку
     local found = false
     for i, c in ipairs(pPlayer.SWExp_Characters or {}) do
         if tonumber(c.id) == tonumber(nCharID) then
@@ -177,13 +175,10 @@ function SWExp.Chars:Rename(pPlayer, nCharID, sCallsign, cb)
             MySQLite.SQLStr(pPlayer.SWExp_ID)),
         function()
             char.callsign = sCallsign
-
-            -- Обновляем активного если это он
-            if pPlayer.SWExp_ActiveChar and pPlayer.SWExp_ActiveChar.id == nCharID then
+            if pPlayer.SWExp_ActiveChar and tonumber(pPlayer.SWExp_ActiveChar.id) == tonumber(nCharID) then
                 pPlayer.SWExp_ActiveChar.callsign = sCallsign
                 pPlayer:SetNWString('swexp_callsign', sCallsign)
             end
-
             hook.Run('SWExp::CharacterRenamed', pPlayer, char)
             if cb then cb(true, char) end
         end
@@ -205,19 +200,13 @@ function SWExp.Chars:Choose(pPlayer, nCharID, cb)
 
     pPlayer.SWExp_ActiveChar = char
 
-    -- NW для HUD
-    -- Модель по рангу (первая из конфига джоба, иначе дефолт)
-    local rankCfg = SWExp.Config and SWExp.Config.Ranks and SWExp.Config.Ranks[char['rank']]
-    local mdl = (rankCfg and rankCfg.model and rankCfg.model[1])
-             or 'models/player/olive/cr_heavy/cr_heavy.mdl'
+    local mdl = DEFAULT_MODEL
 
-    pPlayer:SetModel(mdl)
     pPlayer:SetNWString('swexp_model',        mdl)
-    pPlayer:SetNWString('swexp_callsign',    char.callsign)
+    pPlayer:SetNWString('swexp_callsign',     char.callsign)
     pPlayer:SetNWString('swexp_clone_number', char.clone_number)
     pPlayer:SetNWString('swexp_rank',         char['rank'])
 
-    -- Применяем броню по рангу если настроена
     if SWExp.Config and SWExp.Config.RankArmor then
         local armor = SWExp.Config.RankArmor[char['rank']] or 0
         pPlayer:SetMaxArmor(100)
@@ -227,16 +216,22 @@ function SWExp.Chars:Choose(pPlayer, nCharID, cb)
         end
     end
 
-    -- Спавним
     pPlayer:Spawn()
+    -- Spawn() сбрасывает модель — ставим после
+    pPlayer:SetModel(mdl)
 
     hook.Run('SWExp::CharacterSelected', pPlayer, char)
-
-    -- Сообщаем клиенту
     netstream.Start(pPlayer, 'SWExp::CharSelected', char)
 
     if cb then cb(true, char) end
 end
+
+-- Хук: при любом спавне восстанавливаем модель персонажа
+hook.Add('PlayerSpawn', 'SWExp::RestoreModel', function(pPlayer)
+    if not IsValid(pPlayer) then return end
+    if not pPlayer.SWExp_ActiveChar then return end
+    pPlayer:SetModel(DEFAULT_MODEL)
+end)
 
 -- ============================================================
 -- Хелпер: найти персонажа по ID
@@ -297,7 +292,6 @@ netstream.Hook('SWExp::RenameChar', function(pPlayer, nCharID, sCallsign)
     end)
 end)
 
--- Обновить список (F4 открыт)
 netstream.Hook('SWExp::RequestChars', function(pPlayer)
     if not IsValid(pPlayer) then return end
     SWExp.Chars:Load(pPlayer, function(tChars)
