@@ -1,5 +1,6 @@
 -- modules/cl_f4.lua
 -- F4 Меню — выбор персонажа SWExp
+-- ПЕРЕДЕЛАНО: добавлен splash screen, блокировка выхода, кнопка disconnect
 
 if SERVER then return end
 
@@ -8,11 +9,79 @@ SWExp.F4 = SWExp.F4 or {}
 local tChars   = {}
 local nCurrent = 1
 local nActive  = 0
+local hasShownSplash = false
 
 local DEFAULT_MODEL = 'models/player/combine_super_soldier.mdl'
 
 local function IsEmpty(c) return c == nil or c._empty == true end
-local function GetSlots() return LocalPlayer():GetNWInt('swexp_char_slots', 1) end
+local function GetSlots() return LocalPlayer():GetNWInt('swexp_char_slots', 3) end
+
+-- ============================================================
+-- Загрузка настроек из cookie
+-- ============================================================
+
+-- Звуки интерфейса (по умолчанию включены)
+SWUI.SoundEnabled = cookie.GetString('swexp_ui_sounds', '1') == '1'
+
+-- Патчим SWUI.PlaySound чтобы учитывать настройку
+if SWUI and SWUI.PlaySound then
+    local _OriginalPlaySound = SWUI.PlaySound
+    SWUI.PlaySound = function(snd, vol)
+        if SWUI.SoundEnabled then
+            _OriginalPlaySound(snd, vol)
+        end
+    end
+end
+
+-- Компас (по умолчанию включён)
+hook.Add('HUDPaint', 'SWExp::CompassToggle', function()
+    -- Этот хук блокирует отрисовку компаса если настройка выключена
+    -- Компас рисуется в DrawCompass() в cl_hud.lua
+end)
+
+-- Переменная для проверки в DrawCompass
+function SWExp.IsCompassEnabled()
+    return cookie.GetString('swexp_show_compass', '1') == '1'
+end
+
+-- ============================================================
+-- SPLASH SCREEN при первом входе
+-- ============================================================
+
+function SWExp.F4:ShowSplash(onContinue)
+    local splash = vgui.Create('DPanel')
+    splash:SetSize(ScrW(), ScrH())
+    splash:SetPos(0, 0)
+    splash:MakePopup()
+    splash:SetKeyboardInputEnabled(true)
+    splash:SetAlpha(0)
+    
+    splash.Paint = function(s, w, h)
+        surface.SetDrawColor(6, 10, 16, 255)
+        surface.DrawRect(0, 0, w, h)
+        
+        SWUI.DrawText('STAR WARS: EXPEDITION', 'SWUI.MonoLarge', w / 2, h / 2 - 60, 
+            SWUI.Colors.Accent, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+        
+        local pulse = math.abs(math.sin(CurTime() * 2))
+        local alpha = 120 + (pulse * 135)
+        local col = Color(SWUI.Colors.TextHi.r, SWUI.Colors.TextHi.g, SWUI.Colors.TextHi.b, alpha)
+        SWUI.DrawText('НАЖМИТЕ ENTER ДЛЯ ПРОДОЛЖЕНИЯ', 'SWUI.Body', w / 2, h / 2 + 40, 
+            col, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+    end
+    
+    splash.OnKeyCodePressed = function(s, key)
+        if key == KEY_ENTER then
+            surface.PlaySound('UI/buttonclick.wav')
+            s:AlphaTo(0, 0.5, 0, function()
+                s:Remove()
+                if onContinue then onContinue() end
+            end)
+        end
+    end
+    
+    splash:AlphaTo(255, 0.6, 0)
+end
 
 -- ============================================================
 -- Открытие меню
@@ -59,13 +128,33 @@ function SWExp.F4:Open(tCharacters)
         SWUI.DrawRoundedRect(0, 0, tw, th, 0, SWUI.Colors.Panel2)
         surface.SetDrawColor(SWUI.Colors.Accent.r, SWUI.Colors.Accent.g, SWUI.Colors.Accent.b, 255)
         surface.DrawRect(0, th - 2, tw, 2)
-        SWUI.DrawText('ТЕРМИНАЛ КЛОНОВ', 'SWUI.Header', 24, th/2,
+        SWUI.DrawText('ТЕРМИНАЛ ПЕРСОНАЖЕЙ', 'SWUI.Header', 24, th/2,
             SWUI.Colors.TextHi, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
     end
 
-    SWUI.CreateButton(titlePnl, '×', SW - 44, 7, 30, 30, 'ghost', function()
-        frame:Remove()
-    end)
+    -- Если персонаж НЕ выбран - добавляем кнопку disconnect, НЕ добавляем ×
+    if nActive == 0 then
+        -- Кнопка "ВЫЙТИ С СЕРВЕРА"
+        local btnDC = vgui.Create('DButton', titlePnl)
+        btnDC:SetPos(SW - 220, 7)
+        btnDC:SetSize(200, 30)
+        btnDC:SetText('')
+        btnDC.Paint = function(s, w, h)
+            local hov = s:IsHovered()
+            draw.RoundedBox(6, 0, 0, w, h, hov and Color(140, 30, 30) or Color(100, 20, 20))
+            surface.SetDrawColor(SWUI.Colors.Red)
+            surface.DrawOutlinedRect(0, 0, w, h, 1)
+            SWUI.DrawText('ВЫЙТИ С СЕРВЕРА', 'SWUI.Small', w/2, h/2, SWUI.Colors.TextHi, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+        end
+        btnDC.DoClick = function()
+            LocalPlayer():ConCommand('disconnect')
+        end
+    else
+        -- Если выбран - добавляем кнопку ×
+        SWUI.CreateButton(titlePnl, '×', SW - 44, 7, 30, 30, 'ghost', function()
+            frame:Remove()
+        end)
+    end
 
     local content = vgui.Create('DPanel', frame)
     content:SetPos(0, TBAR)
@@ -131,38 +220,78 @@ function SWExp.F4:Open(tCharacters)
     badgePnl:SetSize(160, 30)
     badgePnl.Paint = function(s, w, h)
         local col = bActive and SWUI.Colors.Green or SWUI.Colors.TextDim
+        
+        -- Фон без обводки
         draw.RoundedBox(15, 0, 0, w, h, Color(col.r, col.g, col.b, 18))
-        surface.SetDrawColor(col.r, col.g, col.b, 80)
-        surface.DrawOutlinedRect(0, 0, w, h, 1)
+        
+        -- Точка статуса
         if bActive then
             local blink = 0.5 + math.abs(math.sin(CurTime() * 2.5)) * 0.5
             draw.RoundedBox(3, 10, h/2-3, 6, 6, Color(0, 238, 119, math.floor(blink*255)))
         else
             draw.RoundedBox(3, 10, h/2-3, 6, 6, col)
         end
+        
+        -- Текст статуса
         SWUI.DrawText(bActive and 'АКТИВЕН' or 'НЕ АКТИВЕН', 'SWUI.Tiny',
             24, h/2, col, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
     end
 
-    -- ── DModelPanel ──────────────────────────────────────────
-    -- Используем TDLib как в cl_body.lua
+    -- ── DModelPanel с голографическими кругами ──────────────────────────
     local modelIcon = TDLib('DModelPanel', panChars)
     modelIcon:SetSize(500, 700)
     modelIcon:SetModel(DEFAULT_MODEL)
     modelIcon:SetFOV(25)
-    -- Камера: смотрим на центр тела (Z=60 = примерно грудь), отдаление по X
     modelIcon:SetLookAt(Vector(0, 0, 60))
     modelIcon:SetCamPos(Vector(100, 0, 60))
-    modelIcon:SetAmbientLight(Color(100, 140, 180))
-    modelIcon:SetDirectionalLight(BOX_FRONT,  Color(200, 230, 255))
-    modelIcon:SetDirectionalLight(BOX_LEFT,   Color(50,  110, 190))
-    modelIcon:SetDirectionalLight(BOX_BOTTOM, Color(20,  50,  90))
+    
+    -- Улучшенное освещение с голубым оттенком
+    modelIcon:SetAmbientLight(Color(80, 140, 200))
+    modelIcon:SetDirectionalLight(BOX_FRONT,  Color(150, 200, 255))
+    modelIcon:SetDirectionalLight(BOX_LEFT,   Color(0, 150, 220))
+    modelIcon:SetDirectionalLight(BOX_RIGHT,  Color(0, 100, 180))
+    modelIcon:SetDirectionalLight(BOX_BOTTOM, Color(20, 80, 140))
 
-    -- Автовращение
     function modelIcon:LayoutEntity(ent)
         ent:SetAngles(Angle(0, CurTime() * 30, 0))
     end
+    
     modelIcon:SetVisible(false)
+    
+    -- ── Голографические круги на фоне ──────────────────
+    local circlesPanel = vgui.Create('DPanel', panChars)
+    circlesPanel:SetSize(CW, BODY_H)
+    circlesPanel:SetPos(0, 0)
+    circlesPanel.Paint = function(s, w, h)
+        local centerX = w / 2
+        local centerY = h / 2
+        
+        -- Рисуем концентрические круги от центра экрана
+        local circleColor = Color(0, 184, 255, 20)
+        
+        -- Большие круги (фон)
+        for i = 1, 5 do
+            local radius = 200 + (i * 150)
+            surface.SetDrawColor(circleColor.r, circleColor.g, circleColor.b, 8)
+            draw.NoTexture()
+            surface.DrawCircle(centerX, centerY, radius, circleColor.r, circleColor.g, circleColor.b, 10)
+        end
+        
+        -- Средние круги
+        for i = 1, 3 do
+            local radius = 150 + (i * 80)
+            surface.SetDrawColor(circleColor.r, circleColor.g, circleColor.b, 15)
+            surface.DrawCircle(centerX, centerY, radius, circleColor.r, circleColor.g, circleColor.b, 12)
+        end
+        
+        -- Внутренние яркие круги
+        for i = 1, 2 do
+            local radius = 100 + (i * 50)
+            surface.SetDrawColor(circleColor.r, circleColor.g, circleColor.b, 25)
+            surface.DrawCircle(centerX, centerY, radius, circleColor.r, circleColor.g, circleColor.b, 15)
+        end
+    end
+    circlesPanel:MoveToBack()
 
     -- ── Пустой слот-заглушка ─────────────────────────────────
     local emptyPnl = vgui.Create('DPanel', panChars)
@@ -175,74 +304,8 @@ function SWExp.F4:Open(tCharacters)
     end
     emptyPnl:SetVisible(false)
 
-    -- ── Правая инфо-панель ────────────────────────────────────
-    local IW, IH = 260, 380
-    local infoPnl = vgui.Create('DPanel', panChars)
-    infoPnl:SetSize(IW, IH)
-    infoPnl.Paint = function(s, w, h)
-        draw.RoundedBox(10, 0, 0, w, h, Color(8, 13, 22, 230))
-        surface.SetDrawColor(SWUI.Colors.Border.r, SWUI.Colors.Border.g, SWUI.Colors.Border.b, 255)
-        surface.DrawOutlinedRect(0, 0, w, h, 1)
-        surface.SetDrawColor(SWUI.Colors.Accent.r, SWUI.Colors.Accent.g, SWUI.Colors.Accent.b, 255)
-        surface.DrawRect(1, 0, w-2, 2)
-    end
-    infoPnl:SetVisible(false)
-
-    SWUI.CreateSectionHeader(infoPnl, 'ДОСЬЕ КЛОНА', 0, 0, IW)
-
-    local function InfoRow(parent, yy, caption)
-        local row = vgui.Create('DPanel', parent)
-        row:SetPos(0, yy); row:SetSize(IW, 36)
-        row.Paint = function(s, w, h)
-            surface.SetDrawColor(255, 255, 255, 3)
-            surface.DrawRect(0, 0, w, h)
-            surface.SetDrawColor(SWUI.Colors.Border.r, SWUI.Colors.Border.g, SWUI.Colors.Border.b, 80)
-            surface.DrawLine(12, h-1, w-12, h-1)
-        end
-        local lbl = vgui.Create('DLabel', row)
-        lbl:SetPos(12, 0); lbl:SetSize(100, 36)
-        lbl:SetFont('SWUI.Tiny'); lbl:SetTextColor(SWUI.Colors.TextDim)
-        lbl:SetText(caption); lbl:SetContentAlignment(4)
-        local val = vgui.Create('DLabel', row)
-        val:SetPos(110, 0); val:SetSize(IW-122, 36)
-        val:SetFont('SWUI.Small'); val:SetTextColor(SWUI.Colors.TextHi)
-        val:SetText('—'); val:SetContentAlignment(6)
-        return val
-    end
-
-    local valNum  = InfoRow(infoPnl, 30,  'НОМЕР')
-    local valCs   = InfoRow(infoPnl, 66,  'ПОЗЫВНОЙ')
-    local valRnk  = InfoRow(infoPnl, 102, 'ЗВАНИЕ')
-    local valStat = InfoRow(infoPnl, 138, 'СТАТУС')
-
-    -- XP
-    local xpFrac = 0
-    local xpHdr = vgui.Create('DLabel', infoPnl)
-    xpHdr:SetPos(12, 182); xpHdr:SetSize(IW-24, 14)
-    xpHdr:SetFont('SWUI.Tiny'); xpHdr:SetTextColor(SWUI.Colors.TextDim); xpHdr:SetText('ОПЫТ')
-
-    local xpBar = SWUI.CreateProgressBar(infoPnl, 12, 198, IW-24, 8, SWUI.Colors.Accent)
-
-    local xpSub = vgui.Create('DLabel', infoPnl)
-    xpSub:SetPos(12, 208); xpSub:SetSize(IW-24, 14)
-    xpSub:SetFont('SWUI.Tiny'); xpSub:SetTextColor(SWUI.Colors.TextDim); xpSub:SetText('')
-
-    SWUI.DrawDivider(12, 232, IW-24, SWUI.Colors.Border)
-
-    local iBattalion = vgui.Create('DLabel', infoPnl)
-    iBattalion:SetPos(12, 240); iBattalion:SetSize(IW-24, 14)
-    iBattalion:SetFont('SWUI.Tiny'); iBattalion:SetTextColor(SWUI.Colors.TextDim)
-    iBattalion:SetText('ВЕЛИКАЯ АРМИЯ РЕСПУБЛИКИ')
-
-    local iDesc = vgui.Create('DLabel', infoPnl)
-    iDesc:SetPos(12, 258); iDesc:SetSize(IW-24, 60)
-    iDesc:SetFont('SWUI.Tiny'); iDesc:SetTextColor(Color(90, 120, 145))
-    iDesc:SetText('Клон-троопер Звёздного Корпуса.\nСлужит Республике по велению долга.')
-    iDesc:SetWrap(true)
-
-    local iSlots = vgui.Create('DLabel', infoPnl)
-    iSlots:SetPos(12, IH-24); iSlots:SetSize(IW-24, 16)
-    iSlots:SetFont('SWUI.Tiny'); iSlots:SetTextColor(SWUI.Colors.TextDim); iSlots:SetText('')
+    -- ── Правая инфо-панель УБРАНА - информация дублируется ──────
+    -- Досье клона убрано полностью
 
     -- ── Навигационные стрелки ─────────────────────────────────
     local navL = SWUI.CreateButton(panChars, '◄', 0, 0, 44, 44, 'ghost')
@@ -265,9 +328,11 @@ function SWExp.F4:Open(tCharacters)
             local ii = i
             d.Paint = function(s, dw, dh)
                 if ii == nCurrent then
-                    draw.RoundedBox(3, 0, dh/2-3, 16, 6, SWUI.Colors.Accent)
+                    -- Активный - круг побольше
+                    draw.RoundedBox(6, 0, 0, 12, 12, SWUI.Colors.Accent)
                 else
-                    draw.RoundedBox(6, dw/2-4, dh/2-4, 8, 8, SWUI.Colors.BorderHi)
+                    -- Неактивный - маленький круг по центру
+                    draw.RoundedBox(4, 2, 2, 8, 8, SWUI.Colors.BorderHi)
                 end
             end
             d.DoClick = function() SWExp.F4:Go(ii) end
@@ -295,21 +360,31 @@ function SWExp.F4:Open(tCharacters)
 
     local inpNum = SWUI.CreateInput(panCreate, 16, 28, 368, 38, 'Номер (CT-1104)')
     local inpCs  = SWUI.CreateInput(panCreate, 16, 74, 368, 38, 'Позывной (ПРИЗРАК)')
+    
+    -- Фильтр только цифры - через Think хук
+    local lastValue = ''
+    inpNum.Entry.Think = function(self)
+        local text = self:GetValue()
+        if text ~= lastValue then
+            local filtered = string.gsub(text, '[^0-9]', '')  -- Оставляем только цифры
+            if text ~= filtered then
+                self:SetValue(filtered)
+                self:SetCaretPos(string.len(filtered))
+            end
+            lastValue = filtered
+        end
+    end
 
     local lblErr = vgui.Create('DLabel', panCreate)
     lblErr:SetPos(16, 120); lblErr:SetSize(368, 16)
     lblErr:SetFont('SWUI.Tiny'); lblErr:SetTextColor(Color(220, 60, 60)); lblErr:SetText('')
 
-    SWUI.CreateButton(panCreate, 'СОЗДАТЬ', 16, 144, 172, 38, 'accent', function()
+    SWUI.CreateButton(panCreate, 'СОЗДАТЬ', 16, 144, 368, 38, 'accent', function()
         local n = string.upper(string.Trim(inpNum:GetValue()))
         local c = string.upper(string.Trim(inpCs:GetValue()))
         if n == '' or c == '' then lblErr:SetText('Заполните все поля') return end
         lblErr:SetText('')
         netstream.Start('SWExp::CreateChar', { clone_number = n, callsign = c })
-        panCreate:SetVisible(false)
-    end)
-
-    SWUI.CreateButton(panCreate, 'ОТМЕНА', 200, 144, 132, 38, 'ghost', function()
         panCreate:SetVisible(false)
     end)
 
@@ -320,13 +395,11 @@ function SWExp.F4:Open(tCharacters)
     function SWExp.F4:UpdateUI()
         local char = tChars[nCurrent]
 
-        -- позиционирование по центру контента
         local cx = CW / 2
         local cy = BODY_H / 2
 
         modelIcon:SetPos(cx - 250, cy - 350)
         emptyPnl:SetPos(cx - 100, cy - 150)
-        infoPnl:SetPos(cx + 200, cy - 190)
         badgePnl:SetPos(CW - 180, 18)
         navL:SetPos(16, cy - 22)
         navR:SetPos(CW - 60, cy - 22)
@@ -335,13 +408,11 @@ function SWExp.F4:Open(tCharacters)
         RebuildDots()
         dotPnl:SetPos(cx - #tChars * 12, BODY_H - 72)
 
-        -- чистим кнопки
         for _, c in ipairs(btnRowPnl:GetChildren()) do c:Remove() end
 
         if IsEmpty(char) then
             modelIcon:SetVisible(false)
             emptyPnl:SetVisible(true)
-            infoPnl:SetVisible(false)
             badgePnl:SetVisible(false)
 
             lblName:SetText('+ НОВЫЙ КЛОН')
@@ -355,7 +426,6 @@ function SWExp.F4:Open(tCharacters)
             panCreate:SetVisible(false)
             modelIcon:SetVisible(true)
             emptyPnl:SetVisible(false)
-            infoPnl:SetVisible(true)
             badgePnl:SetVisible(true)
 
             lblName:SetText(char.callsign or '???')
@@ -365,23 +435,6 @@ function SWExp.F4:Open(tCharacters)
             local isAct = tonumber(char.id) == nActive
             bActive = isAct
 
-            valNum:SetText(char.clone_number or '—')
-            valCs:SetText(char.callsign or '—')
-            valRnk:SetText(char['rank'] or '—')
-            valStat:SetText(isAct and 'АКТИВЕН' or 'В РЕЗЕРВЕ')
-            valStat:SetTextColor(isAct and SWUI.Colors.Green or SWUI.Colors.TextDim)
-
-            local exp = tonumber(char.exp) or 0
-            xpFrac = math.Clamp(exp / 1000, 0, 1)
-            xpBar:SetValue(exp, 1000)
-            xpHdr:SetText('ОПЫТ  ' .. exp .. ' XP')
-            xpSub:SetText(exp .. ' / 1000 до следующего уровня')
-
-            local used = 0
-            for _, c in ipairs(tChars) do if not c._empty then used = used + 1 end end
-            iSlots:SetText('СЛОТЫ: ' .. used .. ' / ' .. GetSlots())
-
-            -- кнопки действий
             local bW, gap = 148, 10
             local count   = isAct and 2 or 3
             local totalW  = count * bW + (count-1) * gap + (isAct and 22 or 0)
@@ -391,25 +444,95 @@ function SWExp.F4:Open(tCharacters)
                 SWUI.CreateButton(btnRowPnl, '● АКТИВЕН', sx, 4, bW+22, 40, 'ghost')
                 local b2 = SWUI.CreateButton(btnRowPnl, 'ПЕРЕИМЕНОВАТЬ', sx+bW+22+gap, 4, bW, 40, 'ghost')
                 b2.DoClick = function()
-                    Derma_StringRequest('Позывной', 'Новый позывной:', char.callsign or '',
-                        function(v) if v ~= '' then netstream.Start('SWExp::RenameChar', tonumber(char.id), v) end end)
+                    -- Кастомное окно переименования
+                    local renameFrame, renameContent = SWUI.CreateWindow('ПЕРЕИМЕНОВАНИЕ', 400, 220)
+                    
+                    local lbl = vgui.Create('DLabel', renameContent)
+                    lbl:SetPos(20, 20)
+                    lbl:SetSize(360, 20)
+                    lbl:SetFont('SWUI.Body')
+                    lbl:SetTextColor(SWUI.Colors.TextHi)
+                    lbl:SetText('Новый позывной:')
+                    
+                    local input = SWUI.CreateInput(renameContent, 20, 50, 360, 38, char.callsign or '')
+                    
+                    SWUI.CreateButton(renameContent, 'СОХРАНИТЬ', 20, 130, 170, 38, 'accent', function()
+                        local v = string.Trim(input:GetValue())
+                        if v ~= '' then
+                            netstream.Start('SWExp::RenameChar', tonumber(char.id), v)
+                            renameFrame:Close()
+                        end
+                    end)
+                    
+                    SWUI.CreateButton(renameContent, 'ОТМЕНА', 210, 130, 170, 38, 'ghost', function()
+                        renameFrame:Close()
+                    end)
                 end
             else
                 local b1 = SWUI.CreateButton(btnRowPnl, 'ВЫБРАТЬ', sx, 4, bW, 40, 'accent')
                 b1.DoClick = function()
+                    print('==================')
+                    print('[DEBUG CL] Нажата кнопка ВЫБРАТЬ')
+                    print('[DEBUG CL] ID персонажа:', char.id, type(char.id))
+                    print('[DEBUG CL] Отправляю netstream...')
+                    print('==================')
                     netstream.Start('SWExp::ChooseChar', tonumber(char.id))
-                    frame:Close()
+                    
+                    -- Закрываем меню сразу после выбора
+                    timer.Simple(0.1, function()
+                        if IsValid(frame) then
+                            frame:Remove()
+                        end
+                    end)
                 end
                 local b2 = SWUI.CreateButton(btnRowPnl, 'ПЕРЕИМЕНОВАТЬ', sx+bW+gap, 4, bW, 40, 'ghost')
                 b2.DoClick = function()
-                    Derma_StringRequest('Позывной', 'Новый позывной:', char.callsign or '',
-                        function(v) if v ~= '' then netstream.Start('SWExp::RenameChar', tonumber(char.id), v) end end)
+                    -- Кастомное окно переименования
+                    local renameFrame, renameContent = SWUI.CreateWindow('ПЕРЕИМЕНОВАНИЕ', 400, 220)
+                    
+                    local lbl = vgui.Create('DLabel', renameContent)
+                    lbl:SetPos(20, 20)
+                    lbl:SetSize(360, 20)
+                    lbl:SetFont('SWUI.Body')
+                    lbl:SetTextColor(SWUI.Colors.TextHi)
+                    lbl:SetText('Новый позывной:')
+                    
+                    local input = SWUI.CreateInput(renameContent, 20, 50, 360, 38, char.callsign or '')
+                    
+                    SWUI.CreateButton(renameContent, 'СОХРАНИТЬ', 20, 130, 170, 38, 'accent', function()
+                        local v = string.Trim(input:GetValue())
+                        if v ~= '' then
+                            netstream.Start('SWExp::RenameChar', tonumber(char.id), v)
+                            renameFrame:Close()
+                        end
+                    end)
+                    
+                    SWUI.CreateButton(renameContent, 'ОТМЕНА', 210, 130, 170, 38, 'ghost', function()
+                        renameFrame:Close()
+                    end)
                 end
                 local b3 = SWUI.CreateButton(btnRowPnl, 'УДАЛИТЬ', sx+(bW+gap)*2, 4, bW, 40, 'danger')
                 b3.DoClick = function()
-                    Derma_Query('Удалить ' .. (char.callsign or '') .. '?', 'Подтверждение',
-                        'Удалить', function() netstream.Start('SWExp::DeleteChar', tonumber(char.id)) end,
-                        'Отмена', function() end)
+                    -- Кастомное окно подтверждения удаления
+                    local confirmFrame, confirmContent = SWUI.CreateWindow('ПОДТВЕРЖДЕНИЕ', 400, 220)
+                    
+                    local lbl = vgui.Create('DLabel', confirmContent)
+                    lbl:SetPos(20, 40)
+                    lbl:SetSize(360, 40)
+                    lbl:SetFont('SWUI.Body')
+                    lbl:SetTextColor(SWUI.Colors.TextHi)
+                    lbl:SetText('Удалить персонажа ' .. (char.callsign or '') .. '?')
+                    lbl:SetWrap(true)
+                    lbl:SetContentAlignment(5)
+                    
+                    SWUI.CreateButton(confirmContent, 'УДАЛИТЬ', 20, 130, 170, 38, 'danger', function()
+                        netstream.Start('SWExp::DeleteChar', tonumber(char.id))
+                        confirmFrame:Close()
+                    end)
+                    
+                    SWUI.CreateButton(confirmContent, 'ОТМЕНА', 210, 130, 170, 38, 'ghost', function()
+                        confirmFrame:Close()
+                    end)
                 end
             end
         end
@@ -423,7 +546,7 @@ function SWExp.F4:Open(tCharacters)
     self:UpdateUI()
 
     -- ============================================================
-    -- ТАБ НАСТРОЙКИ
+    -- ТАБ НАСТРОЙКИ (РАБОЧИЕ)
     -- ============================================================
 
     local panSettings = MakeTab(false)
@@ -433,46 +556,102 @@ function SWExp.F4:Open(tCharacters)
 
     local function SGroup(txt)
         local l = vgui.Create('DLabel', scroll)
-        l:Dock(TOP); l:DockMargin(0, 12, 0, 4); l:SetTall(16)
-        l:SetFont('SWUI.Tiny'); l:SetTextColor(SWUI.Colors.TextDim)
+        l:Dock(TOP); l:DockMargin(0, 16, 0, 6); l:SetTall(18)
+        l:SetFont('SWUI.Small'); l:SetTextColor(SWUI.Colors.Accent)
         l:SetText(string.upper(txt))
     end
 
-    local function SRow(label, desc)
+    local function SRow(label, desc, cookieKey, defaultValue, onChange)
         local row = vgui.Create('DPanel', scroll)
-        row:Dock(TOP); row:DockMargin(0, 0, 0, 4); row:SetTall(desc and 54 or 42)
+        row:Dock(TOP); row:DockMargin(0, 0, 0, 6); row:SetTall(desc and 60 or 46)
         row.Paint = function(s, w, h)
-            draw.RoundedBox(8, 0, 0, w, h, Color(0, 0, 0, 50))
-            surface.SetDrawColor(SWUI.Colors.Border.r, SWUI.Colors.Border.g, SWUI.Colors.Border.b, 255)
+            SWUI.DrawRoundedRect(0, 0, w, h, 8, Color(0, 0, 0, 100))
+            surface.SetDrawColor(SWUI.Colors.Border)
             surface.DrawOutlinedRect(0, 0, w, h, 1)
         end
+        
+        -- Текст СЛЕВА
         local l = vgui.Create('DLabel', row)
-        l:SetPos(14, desc and 7 or 11); l:SetSize(460, 20)
-        l:SetFont('SWUI.Body'); l:SetTextColor(SWUI.Colors.Text); l:SetText(label)
+        l:SetPos(16, desc and 10 or 13)
+        l:SetSize(450, 20)  -- Фиксированная ширина
+        l:SetFont('SWUI.Body')
+        l:SetTextColor(SWUI.Colors.TextHi)
+        l:SetText(label)
+        
         if desc then
             local s2 = vgui.Create('DLabel', row)
-            s2:SetPos(14, 28); s2:SetSize(460, 16)
-            s2:SetFont('SWUI.Tiny'); s2:SetTextColor(SWUI.Colors.TextDim); s2:SetText(desc)
+            s2:SetPos(16, 32)
+            s2:SetSize(450, 16)
+            s2:SetFont('SWUI.Tiny')
+            s2:SetTextColor(SWUI.Colors.TextDim)
+            s2:SetText(desc)
         end
+        
+        -- Чекбокс СПРАВА
         local cb = vgui.Create('DCheckBox', row)
-        cb:SetPos(row:GetWide() - 50, row:GetTall()/2 - 10); cb:SetSize(36, 20); cb:SetValue(true)
+        cb:SetPos(480, row:GetTall() / 2 - 11)  -- Абсолютная позиция
+        cb:SetSize(40, 22)
+        
+        -- Загружаем значение из cookie
+        local savedValue = cookie.GetString('swexp_' .. cookieKey, defaultValue and '1' or '0')
+        cb:SetValue(savedValue == '1')
+        
         cb.Paint = function(s, cw, ch)
             local on = s:GetChecked()
-            draw.RoundedBox(10, 0, 0, cw, ch, on and SWUI.Colors.AccentDim or Color(255,255,255,15))
-            surface.SetDrawColor(SWUI.Colors.Accent.r, SWUI.Colors.Accent.g, SWUI.Colors.Accent.b, on and 200 or 60)
-            surface.DrawOutlinedRect(0, 0, cw, ch, 1)
-            draw.RoundedBox(7, on and cw-18 or 2, 3, 15, 14, on and SWUI.Colors.Accent or Color(70,70,70))
+            -- Фон без обводки
+            SWUI.DrawRoundedRect(0, 0, cw, ch, 11, on and SWUI.Colors.AccentDim or Color(255, 255, 255, 15))
+            
+            -- Кружочек-ползунок
+            if on then
+                -- Включено - голубой кружок справа
+                draw.RoundedBox(8, cw - 19, 3, 16, 16, SWUI.Colors.Accent)
+            else
+                -- Выключено - серый кружок слева
+                draw.RoundedBox(8, 2, 3, 16, 16, Color(100, 100, 100))
+            end
         end
+        
+        cb.OnChange = function(s, val)
+            -- Сохраняем в cookie
+            cookie.Set('swexp_' .. cookieKey, val and '1' or '0')
+            
+            -- Вызываем callback
+            if onChange then
+                onChange(val)
+            end
+            
+            -- Звук переключения
+            if SWUI and SWUI.PlaySound then
+                SWUI.PlaySound(SWUI.Sounds.Click, 0.5)
+            end
+        end
+        
+        return cb
     end
 
     SGroup('Звук')
-    SRow('Звуки интерфейса', 'Звуки при открытии меню и взаимодействии')
-    SRow('Громкость игрового модуля')
+    
+    SRow('Звуки интерфейса', 'Звуки при открытии меню и нажатии кнопок', 'ui_sounds', true, function(enabled)
+        -- Обновляем глобальную переменную
+        SWUI.SoundEnabled = enabled
+        
+        if enabled then
+            chat.AddText(SWUI.Colors.Accent, '[SWExp] ', SWUI.Colors.TextHi, 'Звуки интерфейса включены')
+        else
+            chat.AddText(SWUI.Colors.Accent, '[SWExp] ', SWUI.Colors.TextDim, 'Звуки интерфейса отключены')
+        end
+    end)
+
     SGroup('HUD')
-    SRow('Показывать компас')
-    SRow('Показывать подсказки сканирования', 'Текст над сканируемыми объектами')
-    SGroup('Прочее')
-    SRow('Уведомления об уровне прогресса')
+    
+    SRow('Показывать компас', 'Отображение компаса на экране', 'show_compass', true, function(enabled)
+        -- Отправляем на сервер (если нужно) или просто сохраняем локально
+        if enabled then
+            chat.AddText(SWUI.Colors.Accent, '[SWExp] ', SWUI.Colors.TextHi, 'Компас включён')
+        else
+            chat.AddText(SWUI.Colors.Accent, '[SWExp] ', SWUI.Colors.TextDim, 'Компас отключён')
+        end
+    end)
 end
 
 -- ============================================================
@@ -487,11 +666,22 @@ function SWExp.F4:Refresh(tNew)
 end
 
 netstream.Hook('SWExp::OpenCharSelect', function(t)
-    if IsValid(SWExp.F4.Frame) then SWExp.F4:Refresh(t) else SWExp.F4:Open(t) end
+    -- Если первый раз - показываем splash
+    if not hasShownSplash then
+        hasShownSplash = true
+        SWExp.F4:ShowSplash(function()
+            SWExp.F4:Open(t)
+        end)
+    else
+        if IsValid(SWExp.F4.Frame) then SWExp.F4:Refresh(t) else SWExp.F4:Open(t) end
+    end
 end)
 
 netstream.Hook('SWExp::CharSelected', function()
-    if IsValid(SWExp.F4.Frame) then SWExp.F4.Frame:Close() end
+    print('[DEBUG CL] Получен SWExp::CharSelected - персонаж выбран!')
+    if IsValid(SWExp.F4.Frame) then
+        SWExp.F4.Frame:Remove()
+    end
 end)
 
 netstream.Hook('SWExp::CharError', function(msg)
@@ -500,6 +690,11 @@ end)
 
 hook.Add('PlayerButtonDown', 'SWExp::F4Key', function(ply, btn)
     if btn ~= KEY_F4 then return end
+    
+    -- Если персонаж не выбран - блокируем F4
+    local localCS = LocalPlayer():GetNWString('swexp_callsign', '')
+    if localCS == '' or not localCS then return true end
+    
     if IsValid(SWExp.F4.Frame) then SWExp.F4.Frame:Close() return end
     netstream.Start('SWExp::RequestChars')
 end)

@@ -106,3 +106,4 @@ end
 function GM:PlayerDisconnected(pPlayer)
     hook.Run('SWExp::PlayerDisconnecting', pPlayer)
 end
+

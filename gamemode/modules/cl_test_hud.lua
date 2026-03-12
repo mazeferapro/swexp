@@ -1,194 +1,377 @@
--- Star Wars: Expedition
--- modules/hud/cl_test_ui.lua
--- Открыть: swexp_test_ui в консоли
+-- ============================================================
+-- Star Wars: Expedition — Animation Examples & Documentation
+-- libs/swexp_ui_animations_examples.lua
+--
+-- Примеры использования системы анимаций SWUI
+-- ============================================================
 
-concommand.Add('swexp_test_ui', function()
+--[[
+═══════════════════════════════════════════════════════════════
+ИНСТАЛЛЯЦИЯ
+═══════════════════════════════════════════════════════════════
 
-    local W, H = 1000, 620
-    local frame, content = SWUI.CreateWindow('СНАРЯЖЕНИЕ КЛОНА', W, H)
+1. Добавьте в shared.lua (или gamemode/shared.lua) ПОСЛЕ загрузки swexp_ui.lua:
 
-    -- ── ТАБЫ ──────────────────────────────────────────────────
-    local panels = {}
-
-    SWUI.CreateTabBar(content, {
-        { id = 'inventory', label = 'ИНВЕНТАРЬ'  },
-        { id = 'equipment', label = 'СНАРЯЖЕНИЕ' },
-        { id = 'character', label = 'ПЕРСОНАЖ'   },
-    }, 0, 0, W, 42, function(id)
-        for tid, pnl in pairs(panels) do pnl:SetVisible(tid == id) end
-    end)
-
-    local function MakePanel(visible)
-        local p = vgui.Create('DPanel', content)
-        p:SetPos(0, 42)
-        p:SetSize(W, H - 82)
-        p.Paint = function() end
-        p:SetVisible(visible or false)
-        return p
+    if CLIENT then
+        include('libs/swexp_ui_animations.lua')
+        include('libs/swexp_ui_animated.lua')
     end
+    AddCSLuaFile('libs/swexp_ui_animations.lua')
+    AddCSLuaFile('libs/swexp_ui_animated.lua')
 
-    -- ── ИНВЕНТАРЬ ─────────────────────────────────────────────
-    local invPanel = MakePanel(true)
-    invPanel.Paint = function(self, pw, ph)
-        draw.RoundedBoxEx(16, 0, 0, pw, ph, Color(6, 12, 18, 255), false, false, true, true)
-    end
-    panels['inventory'] = invPanel
+2. Готово! Теперь доступны анимированные компоненты через SWUI.Animated.*
 
-    SWUI.CreateCategoryNav(invPanel, {
-        { id = 'weapons',   icon = '',  label = 'Оружие',    count = 3  },
-        { id = 'armor',     icon = '',  label = 'Броня',     count = 1  },
-        { id = 'medical',   icon = '',  label = 'Медицина',  count = 4  },
-        { id = 'materials', icon = '',  label = 'Материалы', count = 12 },
-    }, 0, 0, 180, H - 82)
+═══════════════════════════════════════════════════════════════
+ДОСТУПНЫЕ КОМПОНЕНТЫ
+═══════════════════════════════════════════════════════════════
 
-    local scroll = SWUI.CreateScrollList(invPanel, 188, 8, W - 196, H - 98)
+1. SWUI.Animated.CreateWindow(title, w, h, parent, accentColor)
+   - Окно с плавным появлением (fade + scale)
+   - Анимированное закрытие при вызове :Close()
 
-    local items = {
-        { name = 'DC-15A Бластер',  tier = 'I',   cls = 'ПЕХОТА',  cost = 25,  locked = false },
-        { name = 'DC-15X Снайпер',  tier = 'II',  cls = 'СНАЙПЕР', cost = 45,  locked = false },
-        { name = 'Республ. доспех', tier = 'II',  cls = 'СРЕДНИЙ', cost = 60,  locked = false },
-        { name = 'Тяжёлый доспех',  tier = 'III', cls = 'ТЯЖЁЛЫЙ', cost = 90,  locked = true  },
-        { name = 'Медпак',          tier = 'I',   cls = 'МЕДИК',   cost = 15,  locked = false },
-        { name = 'Стимулятор',      tier = 'II',  cls = 'МЕДИК',   cost = 30,  locked = false },
+2. SWUI.Animated.CreateButton(parent, x, y, w, h, label, style, onClick)
+   - Кнопка с hover анимацией (масштабирование)
+   - Ripple эффект при клике
+
+3. SWUI.Animated.CreateCategoryNav(parent, items, x, y, w, h, onChange, cornerRadius)
+   - Навигация с плавной активацией
+   - Stagger fade in при появлении
+   - Анимация индикатора активности
+
+4. SWUI.Animated.CreateListRow(parent, h, selected, locked, onClick)
+   - Строка списка с hover анимацией
+   - Плавная смена selected состояния
+   - Shake эффект при попытке нажать на locked
+
+5. SWUI.Animated.CreateDropdown(parent, x, y, w, items, defaultIndex, onChange)
+   - Выпадающее меню с expand/collapse анимацией
+   - Плавные hover переходы
+
+═══════════════════════════════════════════════════════════════
+ПРИМЕР 1: Анимированное окно
+═══════════════════════════════════════════════════════════════
+]]
+
+concommand.Add('swui_test_window', function()
+    -- Создание окна с анимацией
+    local window = SWUI.Animated.CreateWindow('Тестовое окно', 600, 400)
+    window:Center()
+    
+    -- Добавляем контент
+    local btn = SWUI.Animated.CreateButton(
+        window, 
+        20, 60, 200, 40, 
+        'Закрыть', 
+        'primary',
+        function()
+            window:Close()  -- Автоматически анимированное закрытие
+        end
+    )
+end)
+
+--[[
+═══════════════════════════════════════════════════════════════
+ПРИМЕР 2: Категорийная навигация с анимацией
+═══════════════════════════════════════════════════════════════
+]]
+
+concommand.Add('swui_test_nav', function()
+    local window = SWUI.Animated.CreateWindow('Тест навигации', 800, 600)
+    window:Center()
+    
+    local categories = {
+        { id = 'weapons',  icon = '🔫', label = 'Оружие',     count = 12 },
+        { id = 'armor',    icon = '🛡️', label = 'Броня',      count = 8  },
+        { id = 'consumable', icon = '💊', label = 'Расходники', count = 24 },
+        { id = 'misc',     icon = '📦', label = 'Разное',     count = 5  },
     }
+    
+    local nav = SWUI.Animated.CreateCategoryNav(
+        window,
+        categories,
+        20, 60,
+        200, 520,
+        function(categoryID)
+            print('Выбрана категория:', categoryID)
+        end
+    )
+    
+    -- Область контента справа
+    local content = vgui.Create('DPanel', window)
+    content:SetPos(240, 60)
+    content:SetSize(540, 520)
+    content.Paint = function(self, w, h)
+        SWUI.DrawText('Контент категории здесь', 'SWUI.Header', w / 2, h / 2, SWUI.Colors.TextDim, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+    end
+end)
 
-    local selRow = nil
-    for _, item in ipairs(items) do
-        local row
-        local _item = item  -- захватываем в closure
-        row = SWUI.CreateListRow(scroll, 52, false, _item.locked, function()
-            if _item.locked then return end
-            if selRow then selRow._selected = false end
-            selRow = row
-            row._selected = true
-        end)
+--[[
+═══════════════════════════════════════════════════════════════
+ПРИМЕР 3: Список с анимированными строками
+═══════════════════════════════════════════════════════════════
+]]
+
+concommand.Add('swui_test_list', function()
+    local window = SWUI.Animated.CreateWindow('Анимированный список', 400, 500)
+    window:Center()
+    
+    local scroll = SWUI.CreateScrollList(window, 20, 60, 360, 420)
+    
+    local selectedRow = nil
+    
+    for i = 1, 15 do
+        local isLocked = (i % 5 == 0)  -- Каждая 5-я строка заблокирована
+        
+        local row = SWUI.Animated.CreateListRow(
+            scroll,
+            60,
+            false,
+            isLocked,
+            function()
+                -- Снять выделение с предыдущей
+                if selectedRow and IsValid(selectedRow) then
+                    selectedRow:SetSelectedAnimated(false)
+                end
+                
+                -- Выделить текущую
+                row:SetSelectedAnimated(true)
+                selectedRow = row
+                
+                print('Выбран элемент:', i)
+            end
+        )
+        
         row:Dock(TOP)
         row:DockMargin(0, 0, 0, 4)
-
-        local _row = row
-        row.Paint = function(self, pw, ph)
-            -- фон строки (из библиотеки)
-            local hov = self:IsHovered() and not self._locked
-            local sel = self._selected
-            local bg  = sel  and Color(0,40,65,220)
-                     or hov  and Color(0,30,50,180)
-                     or Color(0,0,0,100)
-            local brd = sel  and SWUI.Colors.Accent
-                     or hov  and SWUI.Colors.BorderHi
-                     or SWUI.Colors.Border
-            if self._locked then bg = Color(0,0,0,60); brd = SWUI.Colors.Border end
-            draw.RoundedBox(8, 0, 0, pw, ph, bg)
-            surface.SetDrawColor(brd)
-            surface.DrawOutlinedRect(0, 0, pw, ph, 1)
-
-            -- Тир-полоска слева
-            local tierColors = { I=Color(68,136,102), II=SWUI.Colors.AccentDim, III=Color(136,100,68) }
-            local tc = tierColors[_item.tier] or SWUI.Colors.Border
-            surface.SetDrawColor(tc)
-            surface.DrawRect(0, 0, 3, ph)
-
-            -- Название
-            local nameCol = _item.locked and SWUI.Colors.TextDim or SWUI.Colors.TextHi
-            draw.SimpleText(_item.name, 'SWUI.Header', 16, 10, nameCol)
-
-            -- Тир · Класс
-            draw.SimpleText('ТИР ' .. _item.tier .. '  ·  ' .. _item.cls, 'SWUI.Tiny', 16, 30, SWUI.Colors.TextDim)
-
-            -- Стоимость
-            local costCol = _item.locked and SWUI.Colors.TextDim or SWUI.Colors.Green
-            draw.SimpleText(_item.cost .. ' МАТ', 'SWUI.Mono', pw - 16, ph/2, costCol, TEXT_ALIGN_RIGHT, TEXT_ALIGN_CENTER)
-
-            -- Замок если locked
-            if _item.locked then
-                draw.SimpleText('[LOCKED]', 'SWUI.Tiny', pw - 80, 10, SWUI.Colors.TextDim)
-            end
-        end
+        
+        -- Добавляем контент в строку
+        local label = vgui.Create('DLabel', row)
+        label:SetPos(10, 10)
+        label:SetFont('SWUI.Body')
+        label:SetTextColor(SWUI.Colors.TextHi)
+        label:SetText('Элемент списка #' .. i .. (isLocked and ' (Заблокирован)' or ''))
+        label:SizeToContents()
+        
+        -- Stagger fade in
+        row:SetAlpha(0)
+        SWUI.FadeIn(row, 0.3, i * 0.04)
     end
+end)
 
-    -- ── СНАРЯЖЕНИЕ ────────────────────────────────────────────
-    local eqPanel = MakePanel()
-    eqPanel.Paint = function(self, pw, ph)
-        draw.RoundedBoxEx(16, 0, 0, pw, ph, Color(6, 12, 18, 255), false, false, true, true)
-    end
-    panels['equipment'] = eqPanel
+--[[
+═══════════════════════════════════════════════════════════════
+ПРИМЕР 4: Dropdown меню
+═══════════════════════════════════════════════════════════════
+]]
 
-    SWUI.CreateSectionHeader(eqPanel, 'Основное оружие', 14, 10, W/2 - 28)
-
-    local slotDefs = {
-        { filled = true,  name = 'DC-15A' },
-        { filled = true,  name = 'DC-15X' },
-        { filled = false },
-        { filled = false },
+concommand.Add('swui_test_dropdown', function()
+    local window = SWUI.Animated.CreateWindow('Тест Dropdown', 400, 300)
+    window:Center()
+    
+    local items = {
+        'Вариант 1',
+        'Вариант 2',
+        'Вариант 3',
+        'Вариант 4',
+        'Вариант 5',
     }
-    for i, sd in ipairs(slotDefs) do
-        local _sd = sd
-        local s = SWUI.CreateSlotTile(eqPanel, 14 + (i-1)*72, 46, 64, sd.filled)
-        if sd.filled then
-            s.Paint = function(self, pw, ph)
-                local hov = self:IsHovered()
-                local bg  = hov and Color(30,53,69) or Color(26,42,54)
-                draw.RoundedBox(9, -1,-1, pw+2, ph+2, SWUI.Colors.BorderHi)
-                draw.RoundedBox(8,  0, 0, pw,   ph,   bg)
-                draw.SimpleText(_sd.name, 'SWUI.Small', pw/2, ph/2, SWUI.Colors.TextHi, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
-            end
+    
+    local dropdown = SWUI.Animated.CreateDropdown(
+        window,
+        20, 60,
+        360,
+        items,
+        1,
+        function(index, text)
+            print('Выбрано:', index, text)
         end
-    end
+    )
+end)
 
-    SWUI.CreateSectionHeader(eqPanel, 'Характеристики', W/2, 10, W/2 - 14)
+--[[
+═══════════════════════════════════════════════════════════════
+ПРИМЕР 5: Использование Preset анимаций вручную
+═══════════════════════════════════════════════════════════════
+]]
 
-    local stats = {
-        { label='УРОН',       value='55 дм'   },
-        { label='СКОРОСТРЕЛ', value='600 RPM' },
-        { label='ПОГЛОЩЕНИЕ', value='25%'     },
-        { label='ВЕС',        value='3.2 кг'  },
-    }
-    for i, st in ipairs(stats) do
-        SWUI.CreateStatLabel(eqPanel, st.label, st.value, W/2 + 14, 46 + (i-1)*28)
-    end
-
-    SWUI.CreateButton(eqPanel, 'СНЯТЬ БРОНЮ', 14, H - 130, 140, 30, 'warn')
-    SWUI.CreateButton(eqPanel, 'ЭКИПИРОВАТЬ', 14, H - 94,  140, 30, 'accent')
-
-    -- ── ПЕРСОНАЖ ──────────────────────────────────────────────
-    local charPanel = MakePanel()
-    charPanel.Paint = function(self, pw, ph)
-        draw.RoundedBoxEx(16, 0, 0, pw, ph, Color(6, 12, 18, 255), false, false, true, true)
-    end
-    panels['character'] = charPanel
-
-    local header = vgui.Create('DPanel', charPanel)
-    header:SetPos(0, 0)
-    header:SetSize(W, 110)
-    header.Paint = function(self, pw, ph)
-        draw.SimpleText('ПРИЗРАК',             'SWUI.Title', pw/2, 36, SWUI.Colors.TextHi,  TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
-        draw.SimpleText('CT-4471  ·  РЯДОВОЙ', 'SWUI.Mono',  pw/2, 64, SWUI.Colors.TextDim, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+concommand.Add('swui_test_presets', function()
+    local window = SWUI.Animated.CreateWindow('Preset анимации', 600, 450)
+    window:Center()
+    
+    -- Кнопка 1: Shake при клике
+    local btn1 = SWUI.CreateButton(window, 50, 60, 200, 40, 'Shake эффект', 'primary', function(self)
+        SWUI.Animations.Presets.Shake(self, 8, 0.5)
+    end)
+    
+    -- Кнопка 2: Slide In анимация
+    local btn2 = SWUI.CreateButton(window, 50, 110, 200, 40, 'Slide эффект', 'primary')
+    SWUI.Animations.Presets.SlideIn(btn2, 'left', 0.6)
+    
+    -- Кнопка 3: Ripple эффект
+    local btn3 = SWUI.CreateButton(window, 50, 160, 200, 40, 'Ripple эффект', 'primary')
+    SWUI.Animations.Presets.RippleClick(btn3)
+    
+    -- Панель с Color Transition
+    local panel = vgui.Create('DPanel', window)
+    panel:SetPos(300, 60)
+    panel:SetSize(250, 350)
+    panel.Paint = function(self, w, h)
+        local col = self._animColor or SWUI.Colors.PanelBG
+        SWUI.DrawRoundedRect(0, 0, w, h, 8, col)
         surface.SetDrawColor(SWUI.Colors.Border)
-        surface.DrawLine(pw/4, 88, pw*3/4, 88)
+        surface.DrawOutlinedRect(0, 0, w, h, 1)
+        
+        SWUI.DrawText('Наведи для смены цвета', 'SWUI.Body', w / 2, h / 2, SWUI.Colors.Text, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
     end
-
-    SWUI.CreateSectionHeader(charPanel, 'Прогресс', 14, 118, W - 28)
-
-    local xpBar = SWUI.CreateProgressBar(charPanel, 14, 158, W - 28, 10, SWUI.Colors.Accent)
-    xpBar:SetValue(340, 1000)
-
-    SWUI.CreateStatLabel(charPanel, 'ОПЫТ', '340 / 1000', 14, 178)
-
-    local resBar = SWUI.CreateProgressBar(charPanel, 14, 220, W - 28, 10, SWUI.Colors.Warn)
-    resBar:SetValue(47, 100)
-    SWUI.CreateStatLabel(charPanel, 'МАТЕРИАЛЫ', '47 / 100', 14, 240)
-
-    -- ── КНОПКИ ОКНА ───────────────────────────────────────────
-    SWUI.CreateButton(content, 'ЗАКРЫТЬ',   W - 130, H - 38, 116, 30, 'ghost',  function() frame:Close() end)
-    SWUI.CreateButton(content, 'ПРИМЕНИТЬ', W - 260, H - 38, 120, 30, 'accent', function()
-        chat.AddText(SWUI.Colors.Accent, '[SWExp] ', color_white, 'Применено!')
-        frame:Close()
-    end)
-
+    
+    SWUI.Animations.Presets.ColorTransition(
+        panel,
+        SWUI.Colors.PanelBG,
+        SWUI.Colors.Accent,
+        0.3
+    )
 end)
 
-hook.Add('InitPostEntity', 'SWExp::TestUIHint', function()
-    timer.Simple(2, function()
-        chat.AddText(SWUI.Colors.Accent, '[SWExp] ', SWUI.Colors.TextDim,
-            'Тест UI: ', SWUI.Colors.TextHi, 'swexp_test_ui')
-    end)
+--[[
+═══════════════════════════════════════════════════════════════
+ПРИМЕР 6: Интеграция с существующими SWUI окнами
+═══════════════════════════════════════════════════════════════
+
+Если у вас уже есть код с SWUI.CreateWindow, можно легко добавить анимации:
+]]
+
+-- БЫЛО:
+-- local window = SWUI.CreateWindow('Инвентарь', 800, 600)
+
+-- СТАЛО:
+-- local window = SWUI.Animated.CreateWindow('Инвентарь', 800, 600)
+
+-- Или добавить анимацию к существующему окну:
+-- local window = SWUI.CreateWindow('Инвентарь', 800, 600)
+-- SWUI.Animations.Presets.WindowOpen(window, 0.35)
+
+--[[
+═══════════════════════════════════════════════════════════════
+ПРИМЕР 7: Stagger fade для группы элементов
+═══════════════════════════════════════════════════════════════
+]]
+
+concommand.Add('swui_test_stagger', function()
+    local window = SWUI.Animated.CreateWindow('Stagger Fade In', 400, 500)
+    window:Center()
+    
+    local panels = {}
+    
+    for i = 1, 10 do
+        local panel = vgui.Create('DPanel', window)
+        panel:SetPos(50, 60 + (i - 1) * 40)
+        panel:SetSize(300, 35)
+        panel.Paint = function(self, w, h)
+            SWUI.DrawRoundedRect(0, 0, w, h, 6, SWUI.Colors.PanelBG)
+            surface.SetDrawColor(SWUI.Colors.Border)
+            surface.DrawOutlinedRect(0, 0, w, h, 1)
+            
+            SWUI.DrawText('Элемент #' .. i, 'SWUI.Body', 10, h / 2, SWUI.Colors.TextHi, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
+        end
+        
+        table.insert(panels, panel)
+    end
+    
+    -- Применяем stagger fade
+    SWUI.StaggerFadeIn(panels, 0.3, 0.06)
 end)
+
+--[[
+═══════════════════════════════════════════════════════════════
+РАСШИРЕННОЕ ИСПОЛЬЗОВАНИЕ
+═══════════════════════════════════════════════════════════════
+
+ДОСТУПНЫЕ EASING ФУНКЦИИ:
+- SWUI.Animations.Easing.Linear
+- SWUI.Animations.Easing.InQuad / OutQuad / InOutQuad
+- SWUI.Animations.Easing.InCubic / OutCubic / InOutCubic
+- SWUI.Animations.Easing.InQuart / OutQuart / InOutQuart (рекомендуется для UI)
+- SWUI.Animations.Easing.InQuint / OutQuint / InOutQuint
+- SWUI.Animations.Easing.InExpo / OutExpo
+- SWUI.Animations.Easing.OutBack (с эффектом "отката")
+- SWUI.Animations.Easing.OutElastic (пружинистый)
+- SWUI.Animations.Easing.OutBounce (отскок)
+
+СОЗДАНИЕ КАСТОМНОЙ АНИМАЦИИ:
+
+local panel = vgui.Create('DPanel', parent)
+panel._customValue = 0
+
+local startTime = SysTime()
+local duration = 0.5
+
+local animThink
+animThink = function()
+    if not IsValid(panel) then return end
+    
+    local elapsed = SysTime() - startTime
+    local progress = math.min(elapsed / duration, 1)
+    local eased = SWUI.Animations.Easing.OutQuart(progress)
+    
+    panel._customValue = Lerp(eased, 0, 100)
+    
+    if progress < 1 then
+        timer.Simple(0, animThink)
+    else
+        print('Анимация завершена!')
+    end
+end
+timer.Simple(0, animThink)
+
+═══════════════════════════════════════════════════════════════
+ПРОИЗВОДИТЕЛЬНОСТЬ
+═══════════════════════════════════════════════════════════════
+
+- Все анимации оптимизированы для 60 FPS
+- Используют timer.Simple(0) вместо Think hooks для лучшей производительности
+- Автоматически очищаются при удалении панелей (IsValid проверки)
+- Можно безопасно использовать десятки анимаций одновременно
+
+═══════════════════════════════════════════════════════════════
+СОВЕТЫ
+═══════════════════════════════════════════════════════════════
+
+1. Для UI элементов используйте OutQuart или OutCubic easing
+2. Для появления окон - OutBack (дает приятный "отскок")
+3. Для плавного исчезновения - InQuart
+4. Duration 0.2-0.4 секунды оптимальна для большинства UI анимаций
+5. Stagger delay 0.03-0.06 для списков дает приятный эффект
+
+]]
+
+print('[SWExp] Animation Examples загружены. Доступные команды:')
+print('  swui_test_window   - Тест анимированного окна')
+print('  swui_test_nav      - Тест категорийной навигации')
+print('  swui_test_list     - Тест списка с анимациями')
+print('  swui_test_dropdown - Тест dropdown меню')
+print('  swui_test_presets  - Тест preset анимаций')
+print('  swui_test_stagger  - Тест stagger fade эффекта')
+
+
+-- ============================================================
+-- СОЗДАТЬ ФАЙЛ gamemode/modules/cl_scoreboard.lua
+-- Кастомный скорборд с правильными никами
+-- ============================================================
+
+-- Переопределяем GetName для клиента
+local meta = FindMetaTable('Player')
+local oldGetName = meta.GetName
+
+function meta:GetName()
+    local customNick = self:GetNWString('SWExp_Nick', '')
+    if customNick ~= '' then
+        return customNick
+    end
+    return oldGetName(self)
+end
+
+-- Также Name и Nick
+meta.Name = meta.GetName
+meta.Nick = meta.GetName
+
+print('[SWExp Client] Scoreboard nickname override loaded')

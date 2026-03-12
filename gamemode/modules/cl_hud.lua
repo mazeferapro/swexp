@@ -131,6 +131,14 @@ local DIRS    = {'С','СВ','В','ЮВ','Ю','ЮЗ','З','СЗ'}
 local DANGLES = {0, 45, 90, 135, 180, 225, 270, 315}
 
 local function DrawCompass()
+
+    if SWExp and SWExp.IsCompassEnabled and not SWExp.IsCompassEnabled() then
+        return
+    end
+    
+    local player = LocalPlayer()
+    if not player:Alive() then return end
+    
     local sw = ScrW()
     local cx = sw / 2
     local W  = S(340)
@@ -212,21 +220,44 @@ end
 -- ПЕРСОНАЖ (bottom left)
 -- ============================================================
 
+ 
 local function DrawCharacter()
-    local char     = SWExp and SWExp.LocalCharacter
-    local callsign = char and string.upper(char.callsign or '') or 'ПРИЗРАК'
-    local cloneNum = char and char.clone_number or 'CT-0000'
-
+    local ply = LocalPlayer()
+    
+    -- Берём данные из NWString (сервер их устанавливает в sv_chars.lua)
+    local callsign = IsValid(ply) and ply:GetNWString('swexp_callsign', '') or ''
+    local cloneNum = IsValid(ply) and ply:GetNWString('swexp_clone_number', '') or ''
+    local rankID   = IsValid(ply) and ply:GetNWString('swexp_rank', '') or ''
+    
+    -- Если пусто - показываем дефолт
+    if callsign == '' then callsign = 'ПРИЗРАК' end
+    if cloneNum == '' then cloneNum = 'CT-0000' end
+    if rankID == '' then rankID = 'TRP' end
+    
+    callsign = string.upper(callsign)
+    cloneNum = string.upper(cloneNum)
+    
+    -- Получаем название звания
+    local rankName = SWExp.Ranks and SWExp.Ranks:GetShortName(rankID) or rankID
+    local rankColor = SWExp.Ranks and SWExp.Ranks:GetColor(rankID) or C.Accent
+ 
     local pw = S(160)
-    local ph = S(58)
+    local ph = S(72)  -- Увеличил высоту для звания
     local x  = S(20)
     local y  = ScrH() - ph - S(24)
-
+ 
     Panel(x, y, pw, ph, S(10))
-
+ 
+    -- Позывной
     Txt(callsign, 'SWUI.HUD.Callsign', x + S(14), y + S(10), C.TextHi)
+    
+    -- Номер клона
     Txt(cloneNum, 'SWUI.HUD.CloneNum', x + S(14), y + S(34), C.TextDim)
+    
+    -- Звание (цветное)
+    Txt(rankName, 'SWUI.HUD.CloneNum', x + S(14), y + S(50), rankColor)
 end
+ 
 
 -- ============================================================
 -- HP + БРОНЯ (bottom center)

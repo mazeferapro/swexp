@@ -43,8 +43,12 @@ MsgC('CAMI загружен.\n')
 
 if CLIENT then
     include('libs/swexp_ui.lua')
+    include('libs/swexp_ui_animated.lua')
+    include('libs/swexp_ui_animations.lua')
 end
 AddCSLuaFile('libs/swexp_ui.lua')
+AddCSLuaFile('libs/swexp_ui_animated.lua')
+AddCSLuaFile('libs/swexp_ui_animations.lua')
 MsgC('SWUI загружен.\n')
 
 -- ============================================================

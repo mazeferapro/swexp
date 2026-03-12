@@ -207,6 +207,15 @@ function SWExp.Chars:Choose(pPlayer, nCharID, cb)
     pPlayer:SetNWString('swexp_clone_number', char.clone_number)
     pPlayer:SetNWString('swexp_rank',         char['rank'])
 
+    local rankShort = SWExp.Ranks and SWExp.Ranks:GetShortName(char['rank']) or char['rank']
+    local displayName = string.format('%s %s %s', rankShort, char.clone_number, char.callsign)
+    pPlayer.SWExp_DisplayName = displayName
+
+    -- Устанавливаем ник
+    pPlayer:SetNWString('swexp_display_name', displayName)
+    pPlayer:SetNWString('Nick', displayName)  -- Для совместимости с некоторыми аддонами
+
+
     if SWExp.Config and SWExp.Config.RankArmor then
         local armor = SWExp.Config.RankArmor[char['rank']] or 0
         pPlayer:SetMaxArmor(100)
@@ -300,3 +309,81 @@ netstream.Hook('SWExp::RequestChars', function(pPlayer)
 end)
 
 MsgC(Color(190, 252, 3), '[ SWExp ]', color_white, ' Модуль персонажей загружен.\n')
+
+-- ============================================================
+-- ДОБАВИТЬ В КОНЕЦ gamemode/modules/sv_chars.lua
+-- Полное переопределение ника игрока
+-- ============================================================
+ 
+-- Переопределяем Nick() в метатаблице
+local meta = FindMetaTable('Player')
+local oldNick = meta.Nick
+local oldName = meta.Name
+local oldGetName = meta.GetName
+ 
+function meta:Nick()
+    if self.SWExp_DisplayName then
+        return self.SWExp_DisplayName
+    end
+    return oldNick(self)
+end
+ 
+function meta:Name()
+    if self.SWExp_DisplayName then
+        return self.SWExp_DisplayName
+    end
+    return oldName(self)
+end
+ 
+function meta:GetName()
+    if self.SWExp_DisplayName then
+        return self.SWExp_DisplayName
+    end
+    return oldGetName(self)
+end
+ 
+-- Хук для чата
+hook.Add('PlayerSay', 'SWExp::ChatName', function(ply, text, teamChat)
+    if not IsValid(ply) then return end
+    if not ply.SWExp_DisplayName then return end
+    
+    -- Форматируем сообщение с кастомным ником
+    local msg = teamChat and '(TEAM) ' or ''
+    msg = msg .. ply.SWExp_DisplayName .. ': ' .. text
+    
+    if teamChat then
+        -- Отправляем только команде
+        for _, p in ipairs(player.GetAll()) do
+            if IsValid(p) and p:Team() == ply:Team() then
+                p:ChatPrint(msg)
+            end
+        end
+    else
+        -- Отправляем всем
+        for _, p in ipairs(player.GetAll()) do
+            if IsValid(p) then
+                p:ChatPrint(msg)
+            end
+        end
+    end
+    
+    return ''  -- Блокируем стандартное сообщение
+end)
+ 
+-- Синхронизация с клиентом для скорборда
+hook.Add('PlayerInitialSpawn', 'SWExp::SyncDisplayName', function(ply)
+    timer.Simple(1, function()
+        if IsValid(ply) and ply.SWExp_DisplayName then
+            ply:SetNWString('SWExp_Nick', ply.SWExp_DisplayName)
+        end
+    end)
+end)
+ 
+-- Обновляем NWString когда меняем ник
+hook.Add('SWExp::CharacterSelected', 'SWExp::UpdateDisplayNameNW', function(ply, char)
+    if IsValid(ply) and ply.SWExp_DisplayName then
+        ply:SetNWString('SWExp_Nick', ply.SWExp_DisplayName)
+    end
+end)
+ 
+print('[SWExp] Player nickname override loaded')
