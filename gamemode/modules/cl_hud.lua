@@ -15,46 +15,46 @@ end
 
 local function CreateFonts()
     surface.CreateFont('SWUI.HUD.AmmoClip', {
-        font = 'Exo 2', size = S(56), weight = 800, extended = true,
+        font = 'Exo 2', size = S(64), weight = 800, extended = true,
     })
     surface.CreateFont('SWUI.HUD.AmmoReserve', {
-        font = 'Exo 2', size = S(26), weight = 500, extended = true,
+        font = 'Exo 2', size = S(32), weight = 500, extended = true,
     })
     surface.CreateFont('SWUI.HUD.WeaponName', {
-        font = 'Exo 2', size = S(16), weight = 500, extended = true,
+        font = 'Exo 2', size = S(20), weight = 500, extended = true,
     })
     surface.CreateFont('SWUI.HUD.Callsign', {
-        font = 'Exo 2', size = S(24), weight = 700, extended = true,
+        font = 'Exo 2', size = S(28), weight = 700, extended = true,
     })
     surface.CreateFont('SWUI.HUD.CloneNum', {
-        font = 'Exo 2', size = S(15), weight = 500, extended = true,
+        font = 'Exo 2', size = S(19), weight = 500, extended = true,
     })
     surface.CreateFont('SWUI.HUD.Compass', {
-        font = 'Exo 2', size = S(20), weight = 700, extended = true,
+        font = 'Exo 2', size = S(24), weight = 700, extended = true,
     })
     surface.CreateFont('SWUI.HUD.CompassDim', {
-        font = 'Exo 2', size = S(15), weight = 600, extended = true,
+        font = 'Exo 2', size = S(19), weight = 600, extended = true,
     })
     surface.CreateFont('SWUI.HUD.Degrees', {
-        font = 'Exo 2', size = S(17), weight = 700, extended = true,
+        font = 'Exo 2', size = S(21), weight = 700, extended = true,
     })
     surface.CreateFont('SWUI.HUD.HPLabel', {
-        font = 'Exo 2', size = S(17), weight = 600, extended = true,
+        font = 'Exo 2', size = S(21), weight = 600, extended = true,
     })
     surface.CreateFont('SWUI.HUD.HPVal', {
-        font = 'Exo 2', size = S(18), weight = 600, extended = true,
+        font = 'Exo 2', size = S(22), weight = 600, extended = true,
     })
     surface.CreateFont('SWUI.HUD.Armor', {
-        font = 'Exo 2', size = S(18), weight = 600, extended = true,
+        font = 'Exo 2', size = S(22), weight = 600, extended = true,
     })
     surface.CreateFont('SWUI.HUD.ScanText', {
-        font = 'Exo 2', size = S(17), weight = 400, extended = true,
+        font = 'Exo 2', size = S(21), weight = 400, extended = true,
     })
     surface.CreateFont('SWUI.HUD.ScanAction', {
-        font = 'Exo 2', size = S(15), weight = 700, extended = true,
+        font = 'Exo 2', size = S(19), weight = 700, extended = true,
     })
     surface.CreateFont('SWUI.HUD.ScanKey', {
-        font = 'Exo 2', size = S(14), weight = 700, extended = true,
+        font = 'Exo 2', size = S(18), weight = 700, extended = true,
     })
 end
 
@@ -86,10 +86,11 @@ local C = {
 -- ============================================================
 
 local HUD = {
-    ScanVisible = false,
-    ScanText    = '',
-    ScanPulse   = 0,
-    HPSmooth    = 100,
+    ScanVisible  = false,
+    ScanText     = '',
+    ScanPulse    = 0,
+    HPSmooth     = 100,
+    MedkitAlpha  = 0,   -- плавное появление иконки аптечки
 }
 
 -- ============================================================
@@ -102,8 +103,8 @@ local function Panel(x, y, w, h, r)
 end
 
 local function Txt(text, font, x, y, col, aH, aV)
-    draw.SimpleText(text, font, x, y, col,
-        aH or TEXT_ALIGN_LEFT, aV or TEXT_ALIGN_TOP)
+    SWUI.DrawTextShadow(text, font, x, y, col,
+        aH or TEXT_ALIGN_LEFT, aV or TEXT_ALIGN_TOP, 2, 180)
 end
 
 local function WrapText(text, font, maxW)
@@ -141,8 +142,8 @@ local function DrawCompass()
     
     local sw = ScrW()
     local cx = sw / 2
-    local W  = S(340)
-    local H  = S(40)
+    local W  = S(360)
+    local H  = S(50)
     local x  = cx - W / 2
     local y  = S(22)
 
@@ -223,41 +224,134 @@ end
  
 local function DrawCharacter()
     local ply = LocalPlayer()
-    
-    -- Берём данные из NWString (сервер их устанавливает в sv_chars.lua)
+
     local callsign = IsValid(ply) and ply:GetNWString('swexp_callsign', '') or ''
     local cloneNum = IsValid(ply) and ply:GetNWString('swexp_clone_number', '') or ''
     local rankID   = IsValid(ply) and ply:GetNWString('swexp_rank', '') or ''
-    
-    -- Если пусто - показываем дефолт
+
     if callsign == '' then callsign = 'ПРИЗРАК' end
     if cloneNum == '' then cloneNum = 'CT-0000' end
-    if rankID == '' then rankID = 'TRP' end
-    
+    if rankID   == '' then rankID   = 'TRP'     end
+
     callsign = string.upper(callsign)
     cloneNum = string.upper(cloneNum)
-    
-    -- Получаем название звания
-    local rankName = SWExp.Ranks and SWExp.Ranks:GetShortName(rankID) or rankID
-    local rankColor = SWExp.Ranks and SWExp.Ranks:GetColor(rankID) or C.Accent
- 
-    local pw = S(160)
-    local ph = S(72)  -- Увеличил высоту для звания
-    local x  = S(20)
-    local y  = ScrH() - ph - S(24)
- 
-    Panel(x, y, pw, ph, S(10))
- 
-    -- Позывной
-    Txt(callsign, 'SWUI.HUD.Callsign', x + S(14), y + S(10), C.TextHi)
-    
-    -- Номер клона
-    Txt(cloneNum, 'SWUI.HUD.CloneNum', x + S(14), y + S(34), C.TextDim)
-    
-    -- Звание (цветное)
-    Txt(rankName, 'SWUI.HUD.CloneNum', x + S(14), y + S(50), rankColor)
+
+    local rankName  = SWExp.Ranks and SWExp.Ranks:GetShortName(rankID) or rankID
+    local rankColor = SWExp.Ranks and SWExp.Ranks:GetColor(rankID)     or C.Accent
+
+    local x = S(20)
+    local y = ScrH() - S(20)
+
+    -- Строка 2 (снизу): звание · номер — маленький, приглушённый
+    local subLine = rankName .. '  ·  ' .. cloneNum
+    surface.SetFont('SWUI.HUD.CloneNum')
+    local _, hSub = surface.GetTextSize('A')
+
+    -- Строка 1: позывной
+    surface.SetFont('SWUI.HUD.Callsign')
+    local _, hCall = surface.GetTextSize('A')
+
+    local gap = S(4)
+
+    -- Рисуем снизу вверх
+    local y2 = y - hSub
+    local y1 = y2 - gap - hCall
+
+    -- Тонкая вертикальная акцентная черта слева
+    draw.RoundedBox(0, x, y1, S(2), hCall + gap + hSub, C.Accent)
+
+    local tx = x + S(8)
+
+    -- Позывной (с тенью для читаемости на любом фоне)
+    SWUI.DrawTextShadow(callsign, 'SWUI.HUD.Callsign', tx, y1, C.TextHi, TEXT_ALIGN_LEFT, TEXT_ALIGN_TOP, 2, 180)
+
+    -- Звание (цветом звания) + разделитель + номер (приглушённый)
+    surface.SetFont('SWUI.HUD.CloneNum')
+    local wRank = surface.GetTextSize(rankName)
+    local wSep  = surface.GetTextSize('  ·  ')
+
+    SWUI.DrawTextShadow(rankName,  'SWUI.HUD.CloneNum', tx,               y2, rankColor, TEXT_ALIGN_LEFT, TEXT_ALIGN_TOP, 2, 180)
+    SWUI.DrawTextShadow('  ·  ',   'SWUI.HUD.CloneNum', tx + wRank,       y2, C.TextDim, TEXT_ALIGN_LEFT, TEXT_ALIGN_TOP, 2, 180)
+    SWUI.DrawTextShadow(cloneNum,  'SWUI.HUD.CloneNum', tx + wRank + wSep, y2, C.TextDim, TEXT_ALIGN_LEFT, TEXT_ALIGN_TOP, 2, 180)
 end
  
+
+-- ============================================================
+-- ============================================================
+-- АПТЕЧКИ (рядом с HP, слева от бара)
+-- ============================================================
+
+local function DrawMedkits()
+    -- Читаем данные инвентаря только если система загружена
+    if not SWExp.Inventory or not SWExp.Inventory.LocalData then return end
+
+    local eq = SWExp.Inventory.LocalData.equipment
+    if not eq then return end
+
+    local medSlots = eq["medical"]
+
+    -- Считаем общее количество аптечек во всех медицинских слотах
+    local totalMedkits = 0
+    if medSlots then
+        for _, item in pairs(medSlots) do
+            if item and item.itemID then
+                local d = SWExp.Inventory:GetItemData(item.itemID)
+                if d and d.healType == "hot" then
+                    totalMedkits = totalMedkits + (item.amount or 1)
+                end
+            end
+        end
+    end
+
+    -- Плавное появление / исчезновение
+    local targetAlpha = totalMedkits > 0 and 255 or 80
+    HUD.MedkitAlpha = Lerp(FrameTime() * 5, HUD.MedkitAlpha, targetAlpha)
+
+    local a = math.floor(HUD.MedkitAlpha)
+    if a < 4 then return end
+
+    -- Позиционируем левее HP бара (зеркально к патронам справа)
+    local barW = S(320)
+    local barH = S(8)
+    local cx   = ScrW() / 2
+    local bx   = cx - barW / 2
+    local y    = ScrH() - S(56)
+    local mid  = y + barH / 2   -- вертикальный центр строки
+
+    -- Блок расположен слева от лейбла HP
+    local blockX = bx - S(52) - S(86)
+
+    -- ── Медицинский крест (surface tools, как щит брони) ──
+    -- Размер кратен 3 чтобы arm = size/3 делился без остатка → ноль субпиксельных артефактов
+    local size = math.floor(S(18) / 3) * 3          -- ближайшее кратное 3 (при 1080p = 18)
+    local arm  = math.floor(size / 3)               -- толщина луча  (при 1080p = 6)
+    local off  = math.floor((size - arm) / 2)       -- отступ от края до луча (при 1080p = 6)
+    local cx2  = blockX                             -- левый край квадрата (целый)
+    local cy2  = math.floor(mid - size / 2)         -- верхний край квадрата (целый)
+
+    local col = totalMedkits > 0
+        and Color(0, 238, 119, a)
+        or  Color(74, 122, 144, a)
+
+    -- Вертикальный луч: (off, 0) → ширина arm, высота size
+    draw.RoundedBox(1, cx2 + off, cy2,       arm,  size, col)
+    -- Горизонтальный луч: (0, off) → ширина size, высота arm
+    draw.RoundedBox(1, cx2,       cy2 + off, size, arm,  col)
+
+    -- Количество: сразу правее знака
+    Txt("x" .. tostring(totalMedkits), "SWUI.HUD.HPVal",
+        blockX + size + S(5), mid,
+        col, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
+
+    -- Если HoT активен — мигающий пульс-маркер слева от знака
+    if SWExp.Inventory.MedkitHoT and SWExp.Inventory.MedkitHoT.active then
+        local pulse = 0.5 + math.abs(math.sin(CurTime() * 3)) * 0.5
+        local pa    = math.floor(pulse * 220)
+        local dot   = S(6)
+        draw.RoundedBox(dot / 2, blockX - S(12), math.floor(mid - dot / 2), dot, dot,
+            Color(0, 238, 119, pa))
+    end
+end
 
 -- ============================================================
 -- HP + БРОНЯ (bottom center)
@@ -276,8 +370,8 @@ local function DrawHP()
     local barH = S(8)
     local cx   = ScrW() / 2
     local bx   = cx - barW / 2   -- бар центрирован по экрану
-    local x    = bx - S(42)      -- лейбл слева от бара
-    local y    = ScrH() - S(48)
+    local x    = bx - S(52)      -- лейбл слева от бара
+    local y    = ScrH() - S(56)
 
     -- HP label (белый)
     Txt('HP', 'SWUI.HUD.HPLabel', x, y + barH / 2, C.TextHi,
@@ -345,7 +439,7 @@ local function DrawAmmo()
     if clip < 0 then return end
 
     local rx = ScrW() - S(24)
-    local y  = ScrH() - S(90)
+    local y  = ScrH() - S(112)
 
     -- Weapon name
     Txt(string.upper(wepName), 'SWUI.HUD.WeaponName',
@@ -353,18 +447,18 @@ local function DrawAmmo()
 
     -- Clip крупно
     Txt(tostring(clip), 'SWUI.HUD.AmmoClip',
-        rx, y + S(18), C.TextHi, TEXT_ALIGN_RIGHT, TEXT_ALIGN_TOP)
+        rx, y + S(22), C.TextHi, TEXT_ALIGN_RIGHT, TEXT_ALIGN_TOP)
 
     -- / reserve мелко
     surface.SetFont('SWUI.HUD.AmmoClip')
     local clipW = surface.GetTextSize(tostring(clip))
     local sepX  = rx - clipW - S(6)
 
-    Txt('/', 'SWUI.HUD.AmmoReserve', sepX, y + S(32), C.TextDim, TEXT_ALIGN_RIGHT, TEXT_ALIGN_TOP)
+    Txt('/', 'SWUI.HUD.AmmoReserve', sepX, y + S(40), C.TextDim, TEXT_ALIGN_RIGHT, TEXT_ALIGN_TOP)
     surface.SetFont('SWUI.HUD.AmmoReserve')
     local sepW = surface.GetTextSize('/')
     Txt(tostring(reserve), 'SWUI.HUD.AmmoReserve',
-        sepX - sepW - S(4), y + S(32), C.TextDim, TEXT_ALIGN_RIGHT, TEXT_ALIGN_TOP)
+        sepX - sepW - S(4), y + S(40), C.TextDim, TEXT_ALIGN_RIGHT, TEXT_ALIGN_TOP)
 
     -- Pip bar
     if maxClip > 0 and maxClip <= 40 then
@@ -372,7 +466,7 @@ local function DrawAmmo()
         local pH  = S(4)
         local pG  = S(2)
         local tW  = maxClip * (pW + pG) - pG
-        local pipY = y + S(80)
+        local pipY = y + S(98)
         for i = 1, maxClip do
             local px  = rx - tW + (i - 1) * (pW + pG)
             surface.SetDrawColor(i <= clip
@@ -393,13 +487,13 @@ local function DrawScanHint()
     HUD.ScanPulse = (HUD.ScanPulse + FrameTime() / 2.2) % 1
     local bAlpha  = math.Round(64 + math.abs(math.sin(HUD.ScanPulse * math.pi)) * 89)
 
-    local pw    = S(340)
+    local pw    = S(380)
     local cx    = ScrW() / 2
     local cy    = ScrH() / 2 - S(80)
-    local lineH = S(22)
+    local lineH = S(28)
 
     local lines = WrapText(HUD.ScanText, 'SWUI.HUD.ScanText', pw - S(40))
-    local ph    = math.max(S(90), #lines * lineH + S(50))
+    local ph    = math.max(S(110), #lines * lineH + S(60))
     local x     = cx - pw / 2
     local y     = cy - ph / 2
 
@@ -412,10 +506,10 @@ local function DrawScanHint()
             TEXT_ALIGN_CENTER, TEXT_ALIGN_TOP)
     end
 
-    local aY   = y + ph - S(28)
-    local kW   = S(24)
-    local kH   = S(18)
-    local kX   = cx - S(50)
+    local aY   = y + ph - S(34)
+    local kW   = S(28)
+    local kH   = S(22)
+    local kX   = cx - S(60)
 
     draw.RoundedBox(S(5), kX - 1, aY - 1, kW + 2, kH + 2, C.AccentDim)
     draw.RoundedBox(S(4), kX, aY, kW, kH, Color(0, 184, 255, 30))
@@ -430,16 +524,338 @@ end
 -- Скрываем ванильный HUD
 -- ============================================================
 
+local HIDE_HUD = {
+    ['CHudHealth']          = true,
+    ['CHudBattery']         = true,
+    ['CHudAmmo']            = true,
+    ['CHudSecondaryAmmo']   = true,
+    ['CHudCrosshair']       = true,
+    ['CHudDamageIndicator'] = true,
+    ['CHudDeathNotice']     = true,
+    ['CHudGeiger']          = true,
+    ['CHudTrain']           = true,
+    ['CHudZoom']            = true,
+    ['CHudHistoryResource'] = true,
+}
+
 hook.Add('HUDShouldDraw', 'SWExp::HideDefaultHUD', function(name)
-    local hide = {
-        'CHudHealth','CHudBattery','CHudAmmo','CHudSecondaryAmmo',
-        'CHudCrosshair','CHudDamageIndicator','CHudDeathNotice',
-        'CHudGeiger','CHudTrain','CHudZoom',
-    }
-    for _, v in ipairs(hide) do
-        if name == v then return false end
+    if HIDE_HUD[name] then return false end
+end)
+
+-- Переопределяем метод геймода — гарантированно перекрывает аддоны
+function GM:HUDShouldDraw(name)
+    if HIDE_HUD[name] then return false end
+    return self.BaseClass.HUDShouldDraw(self, name)
+end
+
+-- Полностью перехватываем отрисовку CHudDeathNotice — рисуем пустую функцию вместо неё
+hook.Add('PostRenderVGUI', 'SWExp::KillDeathNotice', function()
+    local worldPanel = vgui.GetWorldPanel()
+    if not IsValid(worldPanel) then return end
+    for _, pnl in ipairs(worldPanel:GetChildren()) do
+        if IsValid(pnl) and pnl:GetName() == "CHudDeathNotice" then
+            pnl:SetVisible(false)
+            pnl:SetSize(0, 0)
+            pnl:SetPos(-9999, -9999)
+        end
     end
 end)
+
+-- ГЛАВНЫЙ ФИХ: Killfeed рисуется через hook DrawDeathNotice в GM:HUDPaint базового геймода.
+-- HUDShouldDraw его не перехватывает. Блокируем хук напрямую.
+hook.Add('DrawDeathNotice', 'SWExp::BlockDrawDeathNotice', function()
+    return true -- возвращаем true = отменяем выполнение хука
+end)
+
+-- ============================================================
+-- ИНФОРМАЦИЯ НАД ИГРОКАМИ (Overhead HUD)
+-- ============================================================
+
+local function DrawOverheadNames()
+    local localPly = LocalPlayer()
+    local shootPos = localPly:GetShootPos()
+    local maxDist = 500 -- Максимальная дистанция видимости в юнитах
+
+    for _, ply in ipairs(player.GetAll()) do
+        -- Игнорируем себя, мертвых игроков и тех, кто скрыт
+        if ply == localPly or not ply:Alive() or ply:GetNoDraw() then continue end
+
+        local targetPos = ply:GetPos()
+        local dist = shootPos:Distance(targetPos)
+        if dist > maxDist then continue end
+
+        -- Проверка на видимость сквозь стены
+        local tr = util.TraceLine({
+            start = shootPos,
+            endpos = targetPos + Vector(0, 0, 50),
+            filter = {localPly, ply}
+        })
+        if tr.Fraction < 1 then continue end
+
+        -- Вычисляем плавную прозрачность
+        local alphaFrac = 1 - (dist / maxDist)
+        alphaFrac = math.Clamp(alphaFrac * 1.5, 0, 1)
+
+        -- Позиция над головой
+        local headPos = targetPos + Vector(0, 0, 80)
+        if ply:Crouching() then
+            headPos.z = headPos.z - 20
+        end
+
+        local screen = headPos:ToScreen()
+        if not screen.visible then continue end
+
+        -- Получаем данные
+        local callsign = string.upper(ply:GetNWString('swexp_callsign', 'ПРИЗРАК'))
+        local cloneNum = string.upper(ply:GetNWString('swexp_clone_number', 'CT-0000'))
+        local rankID   = ply:GetNWString('swexp_rank', 'TRP')
+
+        local rankName = SWExp.Ranks and SWExp.Ranks:GetShortName(rankID) or rankID
+        local rankColor = SWExp.Ranks and SWExp.Ranks:GetColor(rankID) or SWUI.Colors.Accent
+
+        -- Цвета с учетом прозрачности от дистанции
+        local rCol = ColorAlpha(rankColor, 255 * alphaFrac)
+        local wCol = ColorAlpha(SWUI.Colors.TextHi, 255 * alphaFrac)
+        local sAlpha = 150 * alphaFrac
+
+        -- Подготавливаем части текста
+        local textRank = "[" .. rankName .. "]"
+        local textName = " " .. cloneNum .. " " .. callsign
+
+        -- Считаем ширину обеих частей, чтобы выровнять всю строчку строго по центру
+        surface.SetFont('SWUI.HUD.Callsign')
+        local wRank = surface.GetTextSize(textRank)
+        local wName = surface.GetTextSize(textName)
+        local totalW = wRank + wName
+
+        -- Начальная точка по X (сдвигаем влево на половину от общей ширины)
+        local startX = screen.x - (totalW / 2)
+        local y = screen.y
+
+        -- Отрисовываем стык-в-стык (Слева направо)
+        -- 1. Цветное звание в скобках
+        SWUI.DrawTextShadow(textRank, 'SWUI.HUD.Callsign', startX, y, rCol, TEXT_ALIGN_LEFT, TEXT_ALIGN_BOTTOM, 1, sAlpha)
+
+        -- 2. Белый номер и позывной (сдвинутые на ширину звания)
+        SWUI.DrawTextShadow(textName, 'SWUI.HUD.Callsign', startX + wRank, y, wCol, TEXT_ALIGN_LEFT, TEXT_ALIGN_BOTTOM, 1, sAlpha)
+    end
+end
+
+-- ============================================================
+-- Star Wars: Expedition — Weapon Selector
+-- modules/cl_wepselect.lua
+-- ============================================================
+
+if not CLIENT then return end
+
+local function S(n)
+    return math.Round(n * (ScrH() / 1080))
+end
+
+-- Состояние селектора
+local WEPSELECT = {
+    IsActive = false,
+    Alpha = 0,
+    CloseTime = 0,
+    Index = 1,
+    Weapons = {}
+}
+
+-- Настройки
+local DISPLAY_TIME = 2.5 -- Сколько секунд висит меню после скролла
+local FADE_SPEED = 8     -- Скорость появления/затухания
+local MAX_VISIBLE = 7    -- Максимальное количество оружия на экране
+
+-- ============================================================
+-- СКРЫТИЕ СТАНДАРТНОГО ХУДА
+-- ============================================================
+hook.Add('HUDShouldDraw', 'SWExp::HideDefaultWepSelect', function(name)
+    if name == 'CHudWeaponSelection' then return false end
+end)
+
+-- ============================================================
+-- ОБНОВЛЕНИЕ СПИСКА ОРУЖИЯ
+-- ============================================================
+local function UpdateWeaponList()
+    local ply = LocalPlayer()
+    if not IsValid(ply) then return end
+
+    local weps = ply:GetWeapons()
+    
+    -- Сортируем оружие по слотам
+    table.sort(weps, function(a, b)
+        local slotA = a:GetSlot() or 0
+        local slotB = b:GetSlot() or 0
+        if slotA == slotB then
+            return (a:GetSlotPos() or 0) < (b:GetSlotPos() or 0)
+        end
+        return slotA < slotB
+    end)
+
+    WEPSELECT.Weapons = weps
+
+    if WEPSELECT.Index > #WEPSELECT.Weapons then
+        WEPSELECT.Index = 1
+    end
+    
+    if not WEPSELECT.IsActive then
+        local activeWep = ply:GetActiveWeapon()
+        if IsValid(activeWep) then
+            for i, wep in ipairs(WEPSELECT.Weapons) do
+                if wep == activeWep then
+                    WEPSELECT.Index = i
+                    break
+                end
+            end
+        end
+    end
+end
+
+-- ============================================================
+-- ПЕРЕХВАТ НАЖАТИЙ КЛАВИШ
+-- ============================================================
+hook.Add('PlayerBindPress', 'SWExp::WepSelectInput', function(ply, bind, pressed)
+    if not pressed then return end
+    if not ply:Alive() or ply:InVehicle() then return end
+
+    if string.find(bind, 'invnext') then
+        UpdateWeaponList()
+        if #WEPSELECT.Weapons == 0 then return end
+
+        WEPSELECT.IsActive = true
+        WEPSELECT.CloseTime = CurTime() + DISPLAY_TIME
+        WEPSELECT.Index = WEPSELECT.Index + 1
+
+        if WEPSELECT.Index > #WEPSELECT.Weapons then WEPSELECT.Index = 1 end
+        if SWUI and SWUI.PlaySound then SWUI.PlaySound(SWUI.Sounds.Hover, 0.4) end
+        return true
+    end
+
+    if string.find(bind, 'invprev') then
+        UpdateWeaponList()
+        if #WEPSELECT.Weapons == 0 then return end
+
+        WEPSELECT.IsActive = true
+        WEPSELECT.CloseTime = CurTime() + DISPLAY_TIME
+        WEPSELECT.Index = WEPSELECT.Index - 1
+
+        if WEPSELECT.Index < 1 then WEPSELECT.Index = #WEPSELECT.Weapons end
+        if SWUI and SWUI.PlaySound then SWUI.PlaySound(SWUI.Sounds.Hover, 0.4) end
+        return true
+    end
+
+    if string.find(bind, '+attack') and WEPSELECT.IsActive and WEPSELECT.Alpha > 0.5 then
+        local selectedWep = WEPSELECT.Weapons[WEPSELECT.Index]
+        if IsValid(selectedWep) then
+            input.SelectWeapon(selectedWep)
+            if SWUI and SWUI.PlaySound then SWUI.PlaySound(SWUI.Sounds.Select, 0.6) end
+        end
+        
+        WEPSELECT.IsActive = false
+        WEPSELECT.CloseTime = 0
+        return true
+    end
+end)
+
+-- ============================================================
+-- ОТРИСОВКА СЕЛЕКТОРА
+-- ============================================================
+hook.Add('HUDPaint', 'SWExp::DrawWepSelect', function()
+    local ply = LocalPlayer()
+    if not IsValid(ply) or not ply:Alive() then
+        WEPSELECT.IsActive = false
+        WEPSELECT.Alpha = 0
+        return
+    end
+
+    if WEPSELECT.IsActive and CurTime() > WEPSELECT.CloseTime then
+        WEPSELECT.IsActive = false
+    end
+
+    local targetAlpha = WEPSELECT.IsActive and 1 or 0
+    WEPSELECT.Alpha = Lerp(FrameTime() * FADE_SPEED, WEPSELECT.Alpha, targetAlpha)
+
+    if WEPSELECT.Alpha <= 0.01 then return end
+
+    local totalWeps = #WEPSELECT.Weapons
+    if totalWeps == 0 then return end
+
+    -- Высчитываем какие элементы показывать (Скользящее окно)
+    local halfVis = math.floor(MAX_VISIBLE / 2)
+    local startIdx = WEPSELECT.Index - halfVis
+    local endIdx = WEPSELECT.Index + halfVis
+
+    if startIdx < 1 then
+        endIdx = endIdx + math.abs(startIdx) + 1
+        startIdx = 1
+    end
+    if endIdx > totalWeps then
+        startIdx = startIdx - (endIdx - totalWeps)
+        endIdx = totalWeps
+    end
+    startIdx = math.max(1, startIdx)
+
+    local visibleCount = (endIdx - startIdx) + 1
+    local itemW = S(280)
+    local itemH = S(48)
+    local gap = S(6)
+    local totalH = visibleCount * (itemH + gap) - gap
+
+    local startX = ScrW() - itemW - S(30)
+    local startY = (ScrH() / 2) - (totalH / 2)
+
+    surface.SetAlphaMultiplier(WEPSELECT.Alpha)
+
+    -- Индикатор скрытого оружия СВЕРХУ
+    if startIdx > 1 then
+        draw.SimpleText('▲', 'SWUI.Small', startX + itemW / 2, startY - S(15), SWUI.Colors.TextDim, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+    end
+
+    -- Отрисовка списка
+    local drawPos = 0
+    for i = startIdx, endIdx do
+        local wep = WEPSELECT.Weapons[i]
+        if not IsValid(wep) then continue end
+
+        local isSelected = (i == WEPSELECT.Index)
+        local y = startY + drawPos * (itemH + gap)
+        local xOffset = isSelected and -S(15) or 0
+        local x = startX + xOffset
+        
+        local bgCol = isSelected and Color(0, 40, 65, 230) or Color(11, 15, 20, 200)
+        local borderCol = isSelected and SWUI.Colors.Accent or SWUI.Colors.Border
+
+        -- Правильная закругленная обводка (Хитрость: рисуем бокс-границу, а внутри него бокс-фон на 2px меньше)
+        draw.RoundedBox(6, x, y, itemW, itemH, borderCol)
+        draw.RoundedBox(5, x + 1, y + 1, itemW - 2, itemH - 2, bgCol)
+
+        -- Левая полоска для активного
+        if isSelected then
+            draw.RoundedBox(2, x + 2, y + S(6), S(4), itemH - S(12), SWUI.Colors.Accent)
+        end
+
+        local wepName = string.upper(wep:GetPrintName() or wep:GetClass())
+        local textCol = isSelected and SWUI.Colors.TextHi or SWUI.Colors.TextDim
+        local font = isSelected and 'SWUI.Body' or 'SWUI.Small'
+
+        SWUI.DrawText(wepName, font, x + S(16), y + itemH / 2, textCol, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
+
+        local slotNum = (wep:GetSlot() or 0) + 1
+        SWUI.DrawText('[' .. slotNum .. ']', 'SWUI.MonoSmall', x + itemW - S(16), y + itemH / 2, 
+            isSelected and SWUI.Colors.AccentDim or Color(255, 255, 255, 15), 
+            TEXT_ALIGN_RIGHT, TEXT_ALIGN_CENTER)
+            
+        drawPos = drawPos + 1
+    end
+
+    -- Индикатор скрытого оружия СНИЗУ
+    if endIdx < totalWeps then
+        draw.SimpleText('▼', 'SWUI.Small', startX + itemW / 2, startY + totalH + S(15), SWUI.Colors.TextDim, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+    end
+
+    surface.SetAlphaMultiplier(1)
+end)
+
 
 -- ============================================================
 -- HUDPaint
@@ -453,8 +869,10 @@ hook.Add('HUDPaint', 'SWExp::DrawHUD', function()
     DrawCompass()
     DrawCharacter()
     DrawHP()
+    DrawMedkits()
     DrawAmmo()
     DrawScanHint()
+    DrawOverheadNames() -- <--- ДОБАВЛЕНО СЮДА
 end)
 
 -- ============================================================
@@ -479,4 +897,9 @@ net.Receive('SWExp::SyncArmor', function()
         ply.SWExp_ArmorClass = armorClass ~= '' and armorClass or nil
         ply.SWExp_ArmorTier  = armorTier > 0 and armorTier or nil
     end
+end)
+
+
+hook.Add('HUDDrawTargetID', 'SWExp::HideDefaultTargetID', function()
+    return false
 end)

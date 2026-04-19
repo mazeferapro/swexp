@@ -54,14 +54,14 @@ local function SWUI_CreateFonts()
     local FONT = 'Exo 2'
     local MONO = 'Exo 2'
 
-    surface.CreateFont('SWUI.Title',     { font=FONT, size=S(28), weight=800, extended=true })
-    surface.CreateFont('SWUI.Header',    { font=FONT, size=S(22), weight=700, extended=true })
-    surface.CreateFont('SWUI.Body',      { font=FONT, size=S(18), weight=500, extended=true })
-    surface.CreateFont('SWUI.Small',     { font=FONT, size=S(15), weight=600, extended=true })
-    surface.CreateFont('SWUI.Tiny',      { font=FONT, size=S(13), weight=600, extended=true })
-    surface.CreateFont('SWUI.Mono',      { font=MONO, size=S(17), weight=700, extended=true })
-    surface.CreateFont('SWUI.MonoLarge', { font=MONO, size=S(30), weight=700, extended=true })
-    surface.CreateFont('SWUI.MonoSmall', { font=MONO, size=S(14), weight=700, extended=true })
+    surface.CreateFont('SWUI.Title',     { font=FONT, size=S(36), weight=800, extended=true })
+    surface.CreateFont('SWUI.Header',    { font=FONT, size=S(28), weight=700, extended=true })
+    surface.CreateFont('SWUI.Body',      { font=FONT, size=S(22), weight=500, extended=true })
+    surface.CreateFont('SWUI.Small',     { font=FONT, size=S(18), weight=600, extended=true })
+    surface.CreateFont('SWUI.Tiny',      { font=FONT, size=S(15), weight=600, extended=true })
+    surface.CreateFont('SWUI.Mono',      { font=MONO, size=S(21), weight=700, extended=true })
+    surface.CreateFont('SWUI.MonoLarge', { font=MONO, size=S(40), weight=700, extended=true })
+    surface.CreateFont('SWUI.MonoSmall', { font=MONO, size=S(16), weight=700, extended=true })
 end
 
 SWUI_CreateFonts()
@@ -677,45 +677,92 @@ function SWUI.HideTooltip()
     SWUI._tooltip.visible = false
 end
 
+-- Внутренняя утилита: разбивает строку на строки не длиннее maxW пикселей
+local function SWUI_WrapText(text, font, maxW)
+    if not text or text == '' then return {} end
+    surface.SetFont(font)
+    local lines = {}
+    local words = string.Explode(' ', text)
+    local line  = ''
+    for _, word in ipairs(words) do
+        local test = line == '' and word or (line .. ' ' .. word)
+        local tw   = surface.GetTextSize(test)
+        if tw > maxW and line ~= '' then
+            table.insert(lines, line)
+            line = word
+        else
+            line = test
+        end
+    end
+    if line ~= '' then table.insert(lines, line) end
+    return lines
+end
+
 function SWUI.DrawTooltip()
     local tt = SWUI._tooltip
     if not tt.visible then return end
 
-    local mx, my = gui.MousePos()
-    local pw = 220
-    local ph = 20 + (tt.name ~= '' and 20 or 0) + (tt.sub ~= '' and 16 or 0) + (tt.desc ~= '' and 30 or 0) + #tt.stats * 18
+    local mx, my  = gui.MousePos()
+    local pw      = 240
+    local LPAD    = 10
+    local textW   = pw - LPAD * 2
+
+    -- Предварительно считаем высоту с учётом wrap
+    surface.SetFont('SWUI.Small')
+    local _, lineH = surface.GetTextSize('A')
+    lineH = lineH + 2
+
+    local descLines = SWUI_WrapText(tt.desc, 'SWUI.Small', textW)
+    local descH     = #descLines > 0 and (#descLines * lineH + 4) or 0
+
+    local ph = 14
+    if tt.name ~= '' then ph = ph + 22 end
+    if tt.sub  ~= '' then ph = ph + 16 end
+    ph = ph + descH
+    if #descLines > 0 and #tt.stats > 0 then ph = ph + 4 end  -- отступ перед статами
+    ph = ph + #tt.stats * 18 + 10
 
     local x = mx + 14
     local y = my + 14
     if x + pw > ScrW() then x = mx - pw - 6 end
     if y + ph > ScrH() then y = my - ph - 6 end
 
-    -- bg
-    SWUI.DrawRoundedRect(x, y, pw, ph, 8, Color(11, 15, 20, 240))
+    -- Фон
+    SWUI.DrawRoundedRect(x, y, pw, ph, 8, Color(8, 12, 18, 250))
     surface.SetDrawColor(SWUI.Colors.BorderHi)
     surface.DrawOutlinedRect(x, y, pw, ph, 1)
 
     local cy = y + 10
 
     if tt.name ~= '' then
-        SWUI.DrawText(tt.name, 'SWUI.Header', x + 10, cy, SWUI.Colors.TextHi)
-        cy = cy + 20
+        SWUI.DrawText(tt.name, 'SWUI.Header', x + LPAD, cy, SWUI.Colors.TextHi)
+        cy = cy + 22
     end
 
     if tt.sub ~= '' then
-        SWUI.DrawText(tt.sub, 'SWUI.Tiny', x + 10, cy, SWUI.Colors.TextDim)
+        SWUI.DrawText(tt.sub, 'SWUI.Tiny', x + LPAD, cy, SWUI.Colors.TextDim)
         cy = cy + 16
     end
 
-    if tt.desc ~= '' then
-        -- Wrap text вручную
-        draw.DrawText(tt.desc, 'SWUI.Small', x + 10, cy, SWUI.Colors.Text, TEXT_ALIGN_LEFT)
-        cy = cy + 30
+    -- Описание с переносом
+    if #descLines > 0 then
+        for _, ln in ipairs(descLines) do
+            SWUI.DrawText(ln, 'SWUI.Small', x + LPAD, cy, SWUI.Colors.Text)
+            cy = cy + lineH
+        end
+        cy = cy + 4
+    end
+
+    -- Разделитель перед статами
+    if #tt.stats > 0 then
+        surface.SetDrawColor(SWUI.Colors.Border)
+        surface.DrawLine(x + LPAD, cy, x + pw - LPAD, cy)
+        cy = cy + 6
     end
 
     for _, stat in ipairs(tt.stats) do
-        SWUI.DrawText(stat.label, 'SWUI.Tiny', x + 10,      cy, SWUI.Colors.TextDim)
-        SWUI.DrawText(stat.value, 'SWUI.Mono', x + pw - 10, cy, stat.col or SWUI.Colors.TextHi, TEXT_ALIGN_RIGHT)
+        SWUI.DrawText(stat.label, 'SWUI.Tiny', x + LPAD,      cy, SWUI.Colors.TextDim)
+        SWUI.DrawText(stat.value, 'SWUI.Mono', x + pw - LPAD, cy, stat.col or SWUI.Colors.TextHi, TEXT_ALIGN_RIGHT)
         cy = cy + 18
     end
 end

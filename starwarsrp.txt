@@ -8,7 +8,7 @@
     "category"      "rp"
 
     "maps"          ""
-    "menusystem"    "0"
+    "menusystem"    "1"
 
     "author_name"   "Mazefera"
     "author_email"  "mazeferapro@gmail.com"

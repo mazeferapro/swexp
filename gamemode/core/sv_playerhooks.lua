@@ -77,6 +77,9 @@ end)
 -- ============================================================
 
 function GM:PlayerSpawn(pPlayer)
+    pPlayer:StripWeapons()
+    pPlayer:StripAmmo()
+
     pPlayer:SetMaxHealth(100)
     pPlayer:SetHealth(100)
     pPlayer:SetArmor(0)
@@ -107,3 +110,14 @@ function GM:PlayerDisconnected(pPlayer)
     hook.Run('SWExp::PlayerDisconnecting', pPlayer)
 end
 
+-- ============================================================
+-- Реалистичный урон от падения
+-- ============================================================
+
+function GM:GetFallDamage(pPlayer, speed)
+    -- Формула вычисляет урон на основе скорости столкновения с землей (speed).
+    -- При падении с небольшой высоты урон будет 0, со средней - снимет часть ХП, с большой - убьет.
+    local damage = (speed - 526) * 0.25
+    
+    return math.max(0, damage) -- Урон не может быть отрицательным
+end

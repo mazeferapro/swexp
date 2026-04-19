@@ -169,20 +169,32 @@ Presets.WindowOpen = function(panel, duration)
     panel._scaleX = 0.85
     panel._scaleY = 0.85
     
-    local originalPaint = panel.Paint
-    panel.Paint = function(self, w, h)
-        local mx, my = w / 2, h / 2
-        local sx, sy = self._scaleX or 1, self._scaleY or 1
-        
-        local mat = Matrix()
-        mat:Translate(Vector(mx, my, 0))
-        mat:Scale(Vector(sx, sy, 1))
-        mat:Translate(Vector(-mx, -my, 0))
-        
-        cam.PushModelMatrix(mat)
-        if originalPaint then originalPaint(self, w, h) end
-        cam.PopModelMatrix()
+    -- Защита от бесконечного наслаивания Paint при повторных вызовах
+    if not panel._hasWindowAnim then
+        panel._originalPaint = panel.Paint
+        panel.Paint = function(self, w, h)
+            local mx, my = w / 2, h / 2
+            local sx, sy = self._scaleX or 1, self._scaleY or 1
+            
+            if sx ~= 1 or sy ~= 1 then
+                local mat = Matrix()
+                mat:Translate(Vector(mx, my, 0))
+                mat:Scale(Vector(sx, sy, 1))
+                mat:Translate(Vector(-mx, -my, 0))
+                
+                cam.PushModelMatrix(mat)
+                if self._originalPaint then self._originalPaint(self, w, h) end
+                cam.PopModelMatrix()
+            else
+                if self._originalPaint then self._originalPaint(self, w, h) end
+            end
+        end
+        panel._hasWindowAnim = true
     end
+    
+    -- Уникальный ID анимации, чтобы прерывать старые таймеры при быстром открытии/закрытии
+    panel._animWindowID = (panel._animWindowID or 0) + 1
+    local currentAnimID = panel._animWindowID
     
     -- Анимация альфы
     panel:AlphaTo(255, duration * 0.8, 0)
@@ -192,6 +204,7 @@ Presets.WindowOpen = function(panel, duration)
     local animThink
     animThink = function()
         if not IsValid(panel) then return end
+        if panel._animWindowID ~= currentAnimID then return end -- Выходим, если запущена новая анимация
         
         local elapsed = SysTime() - startTime
         local progress = math.min(elapsed / duration, 1)
@@ -209,7 +222,9 @@ Presets.WindowOpen = function(panel, duration)
     end
     timer.Simple(0, animThink)
     
-    SWUI.PlaySound(SWUI.Sounds.Open)
+    if SWUI and SWUI.PlaySound and SWUI.Sounds then
+        SWUI.PlaySound(SWUI.Sounds.Open)
+    end
 end
 
 -- Закрытие окна: Fade + Scale
@@ -219,6 +234,10 @@ Presets.WindowClose = function(panel, duration, onComplete)
     if not panel._scaleX then panel._scaleX = 1 end
     if not panel._scaleY then panel._scaleY = 1 end
     
+    -- Прерываем старую анимацию (если окно начали закрывать, пока оно открывалось)
+    panel._animWindowID = (panel._animWindowID or 0) + 1
+    local currentAnimID = panel._animWindowID
+    
     -- Анимация альфы
     panel:AlphaTo(0, duration * 0.6, 0)
     
@@ -227,6 +246,7 @@ Presets.WindowClose = function(panel, duration, onComplete)
     local animThink
     animThink = function()
         if not IsValid(panel) then return end
+        if panel._animWindowID ~= currentAnimID then return end
         
         local elapsed = SysTime() - startTime
         local progress = math.min(elapsed / duration, 1)
@@ -243,7 +263,9 @@ Presets.WindowClose = function(panel, duration, onComplete)
     end
     timer.Simple(0, animThink)
     
-    SWUI.PlaySound(SWUI.Sounds.Close)
+    if SWUI and SWUI.PlaySound and SWUI.Sounds then
+        SWUI.PlaySound(SWUI.Sounds.Close)
+    end
 end
 
 -- Slide In (слева/справа/сверху/снизу)

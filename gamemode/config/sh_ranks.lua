@@ -86,9 +86,10 @@ SWExp.Ranks.List = {
         shortName = 'КМД',
         color = Color(255, 100, 0),
         armor = 40,
-        sortOrder = 9
+        sortOrder = 9,
+        canManageLimits = true,
     },
-    
+
     -- Высший состав
     {
         id = 'MCMDR',
@@ -96,7 +97,8 @@ SWExp.Ranks.List = {
         shortName = 'МРШ-КМД',
         color = Color(255, 50, 50),
         armor = 50,
-        sortOrder = 10
+        sortOrder = 10,
+        canManageLimits = true,
     }
 }
 
@@ -136,6 +138,12 @@ end
 function SWExp.Ranks:GetArmor(rankID)
     local rank = self:Get(rankID)
     return rank and rank.armor or 0
+end
+
+-- Проверить: может ли звание управлять лимитами ассемблера
+function SWExp.Ranks:CanManageLimits(rankID)
+    local rank = self:Get(rankID)
+    return rank and rank.canManageLimits == true or false
 end
 
 -- ============================================================

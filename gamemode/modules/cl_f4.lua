@@ -11,10 +11,10 @@ local nCurrent = 1
 local nActive  = 0
 local hasShownSplash = false
 
-local DEFAULT_MODEL = 'models/player/combine_super_soldier.mdl'
+local DEFAULT_MODEL = 'models/player/olive/cadet/cadet.mdl'
 
 local function IsEmpty(c) return c == nil or c._empty == true end
-local function GetSlots() return LocalPlayer():GetNWInt('swexp_char_slots', 3) end
+local function GetSlots() return LocalPlayer():GetNWInt('swexp_character_slots', 1) end
 
 -- ============================================================
 -- Загрузка настроек из cookie
@@ -96,12 +96,14 @@ function SWExp.F4:Open(tCharacters)
     -- определяем активного по позывному
     local localCS = LocalPlayer():GetNWString('swexp_callsign', '')
     nActive = 0
+    local realChars = 0
     for _, c in ipairs(tChars) do
         if c.callsign == localCS then nActive = tonumber(c.id) end
+        if tonumber(c.id) ~= -1 and not c._empty then realChars = realChars + 1 end
     end
 
-    -- добавляем пустой слот если есть место
-    if #tChars < GetSlots() then
+    -- добавляем пустой слот если есть место (не считаем админ-персонажа)
+    if realChars < GetSlots() then
         tChars[#tChars + 1] = { _empty = true }
     end
 
@@ -237,15 +239,36 @@ function SWExp.F4:Open(tCharacters)
             24, h/2, col, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
     end
 
-    -- ── DModelPanel с голографическими кругами ──────────────────────────
+    -- ── DModelPanel ──────────────────────────────────────────────────────
+    local modelPoseTime    = 0
+    local modelPoseProgress = 0   -- 0 = дефолт, 1 = полная поза
+
+    -- Поза "armsinfront" — точные углы из sh_animations_list.lua
+    local POSE_BONES = {
+        ["ValveBiped.Bip01_R_Forearm"]  = Angle(-43, -107,  15),
+        ["ValveBiped.Bip01_R_UpperArm"] = Angle( 20,  -57,  -6),
+        ["ValveBiped.Bip01_L_UpperArm"] = Angle(-28,  -59,   1),
+        ["ValveBiped.Bip01_R_Thigh"]    = Angle(  4,   -6,   0),
+        ["ValveBiped.Bip01_L_Thigh"]    = Angle( -7,    0,   0),
+        ["ValveBiped.Bip01_L_Forearm"]  = Angle( 51, -120, -18),
+        ["ValveBiped.Bip01_R_Hand"]     = Angle( 14,  -33,  -7),
+        ["ValveBiped.Bip01_L_Hand"]     = Angle( 25,   31, -14),
+    }
+
+    -- Панель занимает почти всю высоту контентной зоны
+    local PANEL_H = BODY_H - 10
+    local PANEL_W = 500
+
     local modelIcon = TDLib('DModelPanel', panChars)
-    modelIcon:SetSize(500, 700)
+    modelIcon:SetSize(PANEL_W, PANEL_H)
     modelIcon:SetModel(DEFAULT_MODEL)
+
+    -- Камера: FOV=25, дистанция 120 → при панели PANEL_H px модель вписывается целиком
     modelIcon:SetFOV(25)
-    modelIcon:SetLookAt(Vector(0, 0, 60))
-    modelIcon:SetCamPos(Vector(100, 0, 60))
-    
-    -- Улучшенное освещение с голубым оттенком
+    modelIcon:SetLookAt(Vector(0, 0, 38))
+    modelIcon:SetCamPos(Vector(120, 0, 38))
+
+    -- Освещение с голубым оттенком
     modelIcon:SetAmbientLight(Color(80, 140, 200))
     modelIcon:SetDirectionalLight(BOX_FRONT,  Color(150, 200, 255))
     modelIcon:SetDirectionalLight(BOX_LEFT,   Color(0, 150, 220))
@@ -253,7 +276,30 @@ function SWExp.F4:Open(tCharacters)
     modelIcon:SetDirectionalLight(BOX_BOTTOM, Color(20, 80, 140))
 
     function modelIcon:LayoutEntity(ent)
-        ent:SetAngles(Angle(0, CurTime() * 30, 0))
+        local elapsed = CurTime() - modelPoseTime
+
+        -- Продвигаем анимацию (FrameAdvance с реальным временем — RunAnimation сломан в движке)
+        ent:FrameAdvance(RealFrameTime())
+
+        -- ── Камера заходит сбоку и центрируется за 1.1 сек ─────────────
+        local camT = math.Clamp(elapsed / 1.1, 0, 1)
+        camT = 1 - math.pow(1 - camT, 3)
+        self:SetCamPos(Vector(120, Lerp(camT, 80, 0), 38))
+        self:SetLookAt(Vector(0, 0, 38))
+        ent:SetAngles(Angle(0, Lerp(camT, 30, 0), 0))
+
+        -- ── Поза: progress начинает расти с 0.5 сек, скорость x3 ────────
+        -- Точно как в cl_animations.lua: Lerp(FrameTime()*speed, current, target)
+        local poseTarget = elapsed >= 0.5 and 1 or 0
+        modelPoseProgress = Lerp(FrameTime() * 3, modelPoseProgress, poseTarget)
+
+        -- Применяем кости — angles * progress (метод из cl_animations.lua)
+        for boneName, targetAng in pairs(POSE_BONES) do
+            local bid = ent:LookupBone(boneName)
+            if bid and bid >= 0 then
+                ent:ManipulateBoneAngles(bid, targetAng * modelPoseProgress)
+            end
+        end
     end
     
     modelIcon:SetVisible(false)
@@ -398,7 +444,7 @@ function SWExp.F4:Open(tCharacters)
         local cx = CW / 2
         local cy = BODY_H / 2
 
-        modelIcon:SetPos(cx - 250, cy - 350)
+        modelIcon:SetPos(cx - PANEL_W / 2, 5)
         emptyPnl:SetPos(cx - 100, cy - 150)
         badgePnl:SetPos(CW - 180, 18)
         navL:SetPos(16, cy - 22)
@@ -431,108 +477,75 @@ function SWExp.F4:Open(tCharacters)
             lblName:SetText(char.callsign or '???')
             lblRank:SetText(char['rank'] or '')
             lblNumber:SetText(char.clone_number or '')
+            
+            -- Обновляем модель, сбрасываем таймер и прогресс позы
+            modelIcon:SetModel(char.model or 'models/player/combine_super_soldier.mdl')
+            modelPoseTime     = CurTime()
+            modelPoseProgress = 0
 
             local isAct = tonumber(char.id) == nActive
             bActive = isAct
 
+            local isSystem = (tonumber(char.id) == -1)
             local bW, gap = 148, 10
-            local count   = isAct and 2 or 3
+            
+            -- Если это системный персонаж, показываем только 1 кнопку по центру
+            local count   = isAct and (isSystem and 1 or 2) or (isSystem and 1 or 3)
             local totalW  = count * bW + (count-1) * gap + (isAct and 22 or 0)
             local sx      = CW/2 - totalW/2
 
             if isAct then
                 SWUI.CreateButton(btnRowPnl, '● АКТИВЕН', sx, 4, bW+22, 40, 'ghost')
-                local b2 = SWUI.CreateButton(btnRowPnl, 'ПЕРЕИМЕНОВАТЬ', sx+bW+22+gap, 4, bW, 40, 'ghost')
-                b2.DoClick = function()
-                    -- Кастомное окно переименования
-                    local renameFrame, renameContent = SWUI.CreateWindow('ПЕРЕИМЕНОВАНИЕ', 400, 220)
-                    
-                    local lbl = vgui.Create('DLabel', renameContent)
-                    lbl:SetPos(20, 20)
-                    lbl:SetSize(360, 20)
-                    lbl:SetFont('SWUI.Body')
-                    lbl:SetTextColor(SWUI.Colors.TextHi)
-                    lbl:SetText('Новый позывной:')
-                    
-                    local input = SWUI.CreateInput(renameContent, 20, 50, 360, 38, char.callsign or '')
-                    
-                    SWUI.CreateButton(renameContent, 'СОХРАНИТЬ', 20, 130, 170, 38, 'accent', function()
-                        local v = string.Trim(input:GetValue())
-                        if v ~= '' then
-                            netstream.Start('SWExp::RenameChar', tonumber(char.id), v)
-                            renameFrame:Close()
-                        end
-                    end)
-                    
-                    SWUI.CreateButton(renameContent, 'ОТМЕНА', 210, 130, 170, 38, 'ghost', function()
-                        renameFrame:Close()
-                    end)
+                
+                if not isSystem then
+                    local b2 = SWUI.CreateButton(btnRowPnl, 'ПЕРЕИМЕНОВАТЬ', sx+bW+22+gap, 4, bW, 40, 'ghost')
+                    b2.DoClick = function()
+                        local renameFrame, renameContent = SWUI.Animated.CreateWindow('ПЕРЕИМЕНОВАНИЕ', 500, 290)
+                        local lbl = vgui.Create('DLabel', renameContent)
+                        lbl:SetPos(20, 20); lbl:SetSize(460, 26); lbl:SetFont('SWUI.Body'); lbl:SetTextColor(SWUI.Colors.TextHi); lbl:SetText('Новый позывной:')
+                        local input = SWUI.CreateInput(renameContent, 20, 56, 460, 44, char.callsign or '')
+
+                        SWUI.CreateButton(renameContent, 'СОХРАНИТЬ', 20, 180, 225, 44, 'accent', function()
+                            local v = string.Trim(input:GetValue())
+                            if v ~= '' then netstream.Start('SWExp::RenameChar', tonumber(char.id), v); renameFrame:Close() end
+                        end)
+                        SWUI.CreateButton(renameContent, 'ОТМЕНА', 255, 180, 225, 44, 'ghost', function() renameFrame:Close() end)
+                    end
                 end
             else
                 local b1 = SWUI.CreateButton(btnRowPnl, 'ВЫБРАТЬ', sx, 4, bW, 40, 'accent')
                 b1.DoClick = function()
-                    print('==================')
-                    print('[DEBUG CL] Нажата кнопка ВЫБРАТЬ')
-                    print('[DEBUG CL] ID персонажа:', char.id, type(char.id))
-                    print('[DEBUG CL] Отправляю netstream...')
-                    print('==================')
                     netstream.Start('SWExp::ChooseChar', tonumber(char.id))
-                    
-                    -- Закрываем меню сразу после выбора
-                    timer.Simple(0.1, function()
-                        if IsValid(frame) then
-                            frame:Remove()
-                        end
-                    end)
+                    timer.Simple(0.1, function() if IsValid(frame) then frame:Remove() end end)
                 end
-                local b2 = SWUI.CreateButton(btnRowPnl, 'ПЕРЕИМЕНОВАТЬ', sx+bW+gap, 4, bW, 40, 'ghost')
-                b2.DoClick = function()
-                    -- Кастомное окно переименования
-                    local renameFrame, renameContent = SWUI.CreateWindow('ПЕРЕИМЕНОВАНИЕ', 400, 220)
-                    
-                    local lbl = vgui.Create('DLabel', renameContent)
-                    lbl:SetPos(20, 20)
-                    lbl:SetSize(360, 20)
-                    lbl:SetFont('SWUI.Body')
-                    lbl:SetTextColor(SWUI.Colors.TextHi)
-                    lbl:SetText('Новый позывной:')
-                    
-                    local input = SWUI.CreateInput(renameContent, 20, 50, 360, 38, char.callsign or '')
-                    
-                    SWUI.CreateButton(renameContent, 'СОХРАНИТЬ', 20, 130, 170, 38, 'accent', function()
-                        local v = string.Trim(input:GetValue())
-                        if v ~= '' then
-                            netstream.Start('SWExp::RenameChar', tonumber(char.id), v)
-                            renameFrame:Close()
-                        end
-                    end)
-                    
-                    SWUI.CreateButton(renameContent, 'ОТМЕНА', 210, 130, 170, 38, 'ghost', function()
-                        renameFrame:Close()
-                    end)
-                end
-                local b3 = SWUI.CreateButton(btnRowPnl, 'УДАЛИТЬ', sx+(bW+gap)*2, 4, bW, 40, 'danger')
-                b3.DoClick = function()
-                    -- Кастомное окно подтверждения удаления
-                    local confirmFrame, confirmContent = SWUI.CreateWindow('ПОДТВЕРЖДЕНИЕ', 400, 220)
-                    
-                    local lbl = vgui.Create('DLabel', confirmContent)
-                    lbl:SetPos(20, 40)
-                    lbl:SetSize(360, 40)
-                    lbl:SetFont('SWUI.Body')
-                    lbl:SetTextColor(SWUI.Colors.TextHi)
-                    lbl:SetText('Удалить персонажа ' .. (char.callsign or '') .. '?')
-                    lbl:SetWrap(true)
-                    lbl:SetContentAlignment(5)
-                    
-                    SWUI.CreateButton(confirmContent, 'УДАЛИТЬ', 20, 130, 170, 38, 'danger', function()
-                        netstream.Start('SWExp::DeleteChar', tonumber(char.id))
-                        confirmFrame:Close()
-                    end)
-                    
-                    SWUI.CreateButton(confirmContent, 'ОТМЕНА', 210, 130, 170, 38, 'ghost', function()
-                        confirmFrame:Close()
-                    end)
+                
+                if not isSystem then
+                    local b2 = SWUI.CreateButton(btnRowPnl, 'ПЕРЕИМЕНОВАТЬ', sx+bW+gap, 4, bW, 40, 'ghost')
+                    b2.DoClick = function()
+                        local renameFrame, renameContent = SWUI.Animated.CreateWindow('ПЕРЕИМЕНОВАНИЕ', 500, 290)
+                        local lbl = vgui.Create('DLabel', renameContent)
+                        lbl:SetPos(20, 20); lbl:SetSize(460, 26); lbl:SetFont('SWUI.Body'); lbl:SetTextColor(SWUI.Colors.TextHi); lbl:SetText('Новый позывной:')
+                        local input = SWUI.CreateInput(renameContent, 20, 56, 460, 44, char.callsign or '')
+
+                        SWUI.CreateButton(renameContent, 'СОХРАНИТЬ', 20, 180, 225, 44, 'accent', function()
+                            local v = string.Trim(input:GetValue())
+                            if v ~= '' then netstream.Start('SWExp::RenameChar', tonumber(char.id), v); renameFrame:Close() end
+                        end)
+                        SWUI.CreateButton(renameContent, 'ОТМЕНА', 255, 180, 225, 44, 'ghost', function() renameFrame:Close() end)
+                    end
+
+                    local b3 = SWUI.CreateButton(btnRowPnl, 'УДАЛИТЬ', sx+(bW+gap)*2, 4, bW, 40, 'danger')
+                    b3.DoClick = function()
+                        local confirmFrame, confirmContent = SWUI.Animated.CreateWindow('ПОДТВЕРЖДЕНИЕ', 500, 290)
+                        local lbl = vgui.Create('DLabel', confirmContent)
+                        lbl:SetPos(20, 40); lbl:SetSize(460, 50); lbl:SetFont('SWUI.Body'); lbl:SetTextColor(SWUI.Colors.TextHi)
+                        lbl:SetText('Удалить персонажа ' .. (char.callsign or '') .. '?'); lbl:SetWrap(true); lbl:SetContentAlignment(5)
+
+                        SWUI.CreateButton(confirmContent, 'УДАЛИТЬ', 20, 180, 225, 44, 'danger', function()
+                            netstream.Start('SWExp::DeleteChar', tonumber(char.id)); confirmFrame:Close()
+                        end)
+                        SWUI.CreateButton(confirmContent, 'ОТМЕНА', 255, 180, 225, 44, 'ghost', function() confirmFrame:Close() end)
+                    end
                 end
             end
         end
@@ -629,6 +642,51 @@ function SWExp.F4:Open(tCharacters)
         return cb
     end
 
+    local function SKeyBindRow(label, desc, cookieKey, defaultKey)
+        local row = vgui.Create('DPanel', scroll)
+        row:Dock(TOP); row:DockMargin(0, 0, 0, 6); row:SetTall(60)
+        row.Paint = function(s, w, h)
+            SWUI.DrawRoundedRect(0, 0, w, h, 8, Color(0, 0, 0, 100))
+            surface.SetDrawColor(SWUI.Colors.Border)
+            surface.DrawOutlinedRect(0, 0, w, h, 1)
+        end
+        
+        local l = vgui.Create('DLabel', row)
+        l:SetPos(16, 10); l:SetSize(350, 20)
+        l:SetFont('SWUI.Body'); l:SetTextColor(SWUI.Colors.TextHi); l:SetText(label)
+        
+        local s2 = vgui.Create('DLabel', row)
+        s2:SetPos(16, 32); s2:SetSize(350, 16)
+        s2:SetFont('SWUI.Tiny'); s2:SetTextColor(SWUI.Colors.TextDim); s2:SetText(desc)
+        
+        -- Стандартный DBinder, но застилизованный под вашу библиотеку SWUI
+        local binder = vgui.Create('DBinder', row)
+        binder:SetPos(380, 10)
+        binder:SetSize(140, 40)
+        binder:SetValue(cookie.GetNumber('swexp_' .. cookieKey, defaultKey))
+
+        binder:SetText("")
+        binder.UpdateText = function(self) self:SetText("") end
+        
+        binder.Paint = function(s, w, h)
+            local hov = s:IsHovered()
+            SWUI.DrawRoundedRect(0, 0, w, h, 6, hov and Color(0, 40, 65) or Color(11, 15, 20))
+            surface.SetDrawColor(hov and SWUI.Colors.BorderHi or SWUI.Colors.Border)
+            surface.DrawOutlinedRect(0, 0, w, h, 1)
+            
+            local keyName = input.GetKeyName(s:GetValue())
+            keyName = keyName and string.upper(keyName) or "НЕ НАЗНАЧЕНО"
+            SWUI.DrawText(keyName, 'SWUI.Mono', w/2, h/2, SWUI.Colors.TextHi, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+        end
+        
+        binder.OnChange = function(s, num)
+            cookie.Set('swexp_' .. cookieKey, num)
+            if SWUI and SWUI.PlaySound then SWUI.PlaySound(SWUI.Sounds.Click) end
+        end
+        
+        return binder
+    end
+
     SGroup('Звук')
     
     SRow('Звуки интерфейса', 'Звуки при открытии меню и нажатии кнопок', 'ui_sounds', true, function(enabled)
@@ -652,6 +710,33 @@ function SWExp.F4:Open(tCharacters)
             chat.AddText(SWUI.Colors.Accent, '[SWExp] ', SWUI.Colors.TextDim, 'Компас отключён')
         end
     end)
+
+    SGroup('Визуальные эффекты')
+
+    local ccDefault = GetConVar('swexp_colormod') and GetConVar('swexp_colormod'):GetBool() or false
+    SRow('Цветокоррекция', 'Цветокоррекция и bloom', 'colormod', ccDefault, function(enabled)
+        RunConsoleCommand('swexp_colormod', enabled and '1' or '0')
+        if enabled then
+            RunConsoleCommand('r_shaderlib', '1')
+            SWExp.EnableBloom()
+            RunConsoleCommand('pp_colormod', '1')
+            chat.AddText(SWUI.Colors.Accent, '[SWExp] ', SWUI.Colors.TextHi, 'Цветокоррекция включена')
+        else
+            SWExp.DisableBloom()
+            RunConsoleCommand('r_shaderlib', '0')
+            RunConsoleCommand('pp_colormod', '0')
+            chat.AddText(SWUI.Colors.Accent, '[SWExp] ', SWUI.Colors.TextDim, 'Цветокоррекция отключена')
+        end
+    end)
+
+    SGroup('Рация и связь')
+    SKeyBindRow('Меню комлинка', 'Кнопка для открытия окна настройки частоты', 'key_comlink_menu', KEY_G)
+
+    SGroup('Инвентарь')
+    SKeyBindRow('Открыть инвентарь', 'Кнопка для открытия/закрытия инвентаря', 'key_inventory_open', KEY_I)
+
+    SGroup('Медицина')
+    SKeyBindRow('Использовать аптечку', 'Активирует первую аптечку из медицинского слота. Хил даётся постепенно.', 'key_use_medkit', KEY_H)
 end
 
 -- ============================================================

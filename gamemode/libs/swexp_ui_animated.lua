@@ -15,20 +15,23 @@ SWUI.Animated = SWUI.Animated or {}
 -- ============================================================
 
 function SWUI.Animated.CreateWindow(title, w, h, parent, accentColor)
-    local window = SWUI.CreateWindow(title, w, h, parent, accentColor)
-    
+    local window, content = SWUI.CreateWindow(title, w, h, parent, accentColor)
+
     -- Применяем анимацию появления
     SWUI.Animations.Presets.WindowOpen(window, 0.35)
-    
+
     -- Переопределяем Close с анимацией
     local originalClose = window.Close
     window.Close = function(self)
         SWUI.Animations.Presets.WindowClose(self, 0.25, function()
-            if originalClose then originalClose(self) end
+            if IsValid(self) then
+                if originalClose then originalClose(self) end
+            end
         end)
     end
-    
-    return window
+
+    -- Возвращаем оба значения как SWUI.CreateWindow
+    return window, content
 end
 
 -- ============================================================

@@ -4,7 +4,16 @@
 -- Броня НЕ снижается от урона.
 -- Чем выше броня — тем медленнее игрок.
 
+-- modules/armor/sv_armor.lua
+-- Броня = статический процент снижения урона (Armor() / 100).
+-- Armor(50) → урон умножается на 0.5
+-- Броня НЕ снижается от урона.
+-- Чем выше броня — тем медленнее игрок.
+
 if CLIENT then return end
+
+SWExp = SWExp or {}
+SWExp.Armor = SWExp.Armor or {}
 
 -- Базовые скорости
 local BASE_WALK      = 250
@@ -15,7 +24,8 @@ local BASE_SLOW_WALK = 150
 -- Применение скорости с учётом брони
 -- ============================================================
 
-local function ApplyArmorSpeed(pPlayer)
+-- Убрали local, теперь функцию видят другие файлы
+function SWExp.Armor.ApplyArmorSpeed(pPlayer)
     local armor   = pPlayer:Armor()
     local penalty = armor / 100
     local mult    = 1 - (penalty * 0.4)   -- броня 100% → ×0.6
@@ -24,7 +34,6 @@ local function ApplyArmorSpeed(pPlayer)
     pPlayer:SetRunSpeed(math.floor(BASE_RUN        * mult))
     pPlayer:SetSlowWalkSpeed(math.floor(BASE_SLOW_WALK * mult))
 end
-
 -- ============================================================
 -- Поглощение урона + защита от стандартного снижения GMod
 -- ============================================================
@@ -137,5 +146,65 @@ concommand.Add('swexp_resetarmor', function(pCaller, _, args)
 
     MsgC(Color(255, 80, 80), '[SWExp.Armor] Игрок "', targetName, '" не найден.\n')
 end)
+
+-- ============================================================
+-- ДЕБАГГЕР УРОНА И БРОНИ
+-- ============================================================
+local DebugArmorEnabled = false -- Включено по умолчанию
+
+concommand.Add("swexp_debug_armor", function(ply)
+    if IsValid(ply) and not ply:IsSuperAdmin() then return end
+    DebugArmorEnabled = not DebugArmorEnabled
+    
+    local state = DebugArmorEnabled and "ВКЛЮЧЕН" or "ВЫКЛЮЧЕН"
+    if IsValid(ply) then ply:ChatPrint("[SWExp] Дебаг урона: " .. state) end
+    print("[SWExp] Дебаг урона: " .. state)
+end)
+
+-- ============================================================
+-- Поглощение урона + защита от стандартного снижения GMod
+-- ============================================================
+
+hook.Add('EntityTakeDamage', 'SWExp::ArmorReduction', function(target, dmginfo)
+    if not target:IsPlayer() then return end
+    if target:Armor() <= 0 then return end
+
+    -- Игнорируем урон от падения, утопления, яда и радиации (броня от этого не спасет)
+    if bit.band(dmginfo:GetDamageType(), bit.bor(DMG_FALL, DMG_DROWN, DMG_POISON, DMG_RADIATION)) ~= 0 then 
+        return 
+    end
+
+    local reduction = math.Clamp(target:Armor() / 100, 0, 1)
+    local newDamage = dmginfo:GetDamage() * (1 - reduction)
+
+    -- ВАЖНО: Если броня поглотила 100% урона (или урон стал нулевым)
+    if newDamage <= 0 then
+        -- Выводим дебаг сами, так как PostEntityTakeDamage при отмене не сработает
+        if target._DebugOriginalDmg then
+            local orig = math.Round(target._DebugOriginalDmg, 1)
+            target._DebugOriginalDmg = nil
+        end
+        
+        -- return true ПОЛНОСТЬЮ отменяет событие урона в движке GMod!
+        return true 
+    end
+
+    -- Если урон порезался только частично (например при 50% брони)
+    dmginfo:SetDamage(newDamage)
+
+    -- Прячем броню, чтобы движок GMod не пытался её сломать по своим правилам
+    target._SWExp_Armor = target:Armor()
+    target:SetArmor(0)
+end)
+
+-- Возвращаем броню на место после того, как урон прошел по здоровью
+hook.Add('PostEntityTakeDamage', 'SWExp::ArmorRestore', function(target, dmginfo, bTookDamage)
+    if not target:IsPlayer() then return end
+    if not target._SWExp_Armor then return end
+
+    target:SetArmor(target._SWExp_Armor)
+    target._SWExp_Armor = nil
+end)
+
 
 MsgC(Color(190, 252, 3), '[ SWExp ]', color_white, ' Модуль брони загружен.\n')
