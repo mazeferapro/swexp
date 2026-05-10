@@ -28,18 +28,20 @@ SWExp.Inventory.Config = {
         HEAVY = "heavy",               -- Тяжёлое снаряжение
         SPECIAL = "special",           -- Специальное снаряжение (Крюк-кошка, щит и т.д.)
         MEDICAL = "medical",           -- Медицинское снаряжение
+        GRENADE = "grenade",           -- Слоты под гранаты (3 шт.)
         ARMOR = "armor"                -- Слот класса/брони (НОВОЕ ИЗ GDD)
     },
-    
-    -- Конфигурация максимального числа слотов 
+
+    -- Конфигурация максимального числа слотов
     -- (Реальное количество доступных слотов теперь контролируется надетой бронёй в cl/sv)
     EquipmentSlots = {
-        primary = { total = 2, free = 1 },
-        secondary = { total = 2, free = 1 },
-        heavy = { total = 1, free = 0 },
-        special = { total = 3, free = 1 },
-        medical = { total = 3, free = 1 },
-        armor = { total = 1, free = 1 } -- Только один костюм одновременно
+        primary = { total = 2},
+        secondary = { total = 2},
+        heavy = { total = 1},
+        special = { total = 3},
+        medical = { total = 3},
+        grenade = { total = 3}, -- 3 слота под гранаты, всегда открыты
+        armor = { total = 1} -- Только один костюм одновременно
     },
     
     -- Время жизни выброшенных предметов (в секундах)
@@ -86,44 +88,511 @@ end
 SWExp.Inventory:RegisterItem({
     id = "armor_light_t1",
     name = "Лёгкая броня (Тир 1)",
-    description = "Комплект разведчика. Даёт доступ к крюку-кошке. Поглощение: 10%.",
-    icon = "icon16/user.png",
+    description = "Комплект разведчика.",
+    icon = "swexpicon/swexp-armor-light.png",
     width = 3,
     height = 4,
     slotType = "armor",
     rarity = "common",
-    worldModel = "models/props_combine/combine_suit.mdl",
+    worldModel = "models/vortexgaming/tc13u/armor/chest.mdl",
     -- Уникальные параметры для sv_inventory
     armorTier = 1,
-    armorReduction = 1.00,
+    armorReduction = 0.10,
     armorClass = "light",
-    playerModel = "models/helios/tc13/base.mdl",
-    classSWEP = "weapon_grapplehook"
+    playerModel = "models/sb_arf/sb_arf.mdl",
+    classSWEP = "realistic_hook",
+    isAvailableCloak = true
+})
+
+SWExp.Inventory:RegisterItem({
+    id = "armor_light_t2",
+    name = "Лёгкая броня (Тир 2)",
+    description = "Комплект разведчика.",
+    icon = "swexpicon/swexp-armor-light.png",
+    width = 3,
+    height = 4,
+    slotType = "armor",
+    rarity = "uncommon",
+    worldModel = "models/vortexgaming/tc13u/armor/chest.mdl",
+    -- Уникальные параметры для sv_inventory
+    armorTier = 2,
+    armorReduction = 0.15,
+    armorClass = "light",
+    playerModel = "models/sb_arf/sb_arf.mdl",
+    classSWEP = "realistic_hook",
+    isAvailableCloak = true
+})
+
+SWExp.Inventory:RegisterItem({
+    id = "armor_light_t3",
+    name = "Лёгкая броня (Тир 3)",
+    description = "Комплект разведчика.",
+    icon = "swexpicon/swexp-armor-light.png",
+    width = 3,
+    height = 4,
+    slotType = "armor",
+    rarity = "rare",
+    worldModel = "models/vortexgaming/tc13u/armor/chest.mdl",
+    -- Уникальные параметры для sv_inventory
+    armorTier = 3,
+    armorReduction = 0.20,
+    armorClass = "light",
+    playerModel = "models/sb_arf/sb_arf.mdl",
+    classSWEP = "realistic_hook",
+    isAvailableCloak = true
+})
+
+SWExp.Inventory:RegisterItem({
+    id = "armor_light_t4",
+    name = "Лёгкая броня (Тир 4)",
+    description = "Комплект разведчика.",
+    icon = "swexpicon/swexp-armor-light.png",
+    width = 3,
+    height = 4,
+    slotType = "armor",
+    rarity = "epic",
+    worldModel = "models/vortexgaming/tc13u/armor/chest.mdl",
+    -- Уникальные параметры для sv_inventory
+    armorTier = 4,
+    armorReduction = 0.25,
+    armorClass = "light",
+    playerModel = "models/sb_arf/sb_arf.mdl",
+    classSWEP = "realistic_hook",
+    isAvailableCloak = true
+})
+
+SWExp.Inventory:RegisterItem({
+    id = "armor_light_t5",
+    name = "Лёгкая броня (Тир 5)",
+    description = "Комплект разведчика.",
+    icon = "swexpicon/swexp-armor-light.png",
+    width = 3,
+    height = 4,
+    slotType = "armor",
+    rarity = "legendary",
+    worldModel = "models/vortexgaming/tc13u/armor/chest.mdl",
+    -- Уникальные параметры для sv_inventory
+    armorTier = 5,
+    armorReduction = 0.30,
+    armorClass = "light",
+    playerModel = "models/sb_arf/sb_arf.mdl",
+    classSWEP = "realistic_hook",
+    isAvailableCloak = true
+})
+
+SWExp.Inventory:RegisterItem({
+    id = "armor_medium_t1",
+    name = "Средняя броня (Тир 1)",
+    description = "Стандартная броня клона.",
+    icon = "swexpicon/swexp-armor-medium.png",
+    width = 3,
+    height = 4,
+    slotType = "armor",
+    rarity = "common",
+    worldModel = "models/vortexgaming/tc13u/armor/chest.mdl",
+    -- Уникальные параметры для sv_inventory
+    armorTier = 1,
+    armorReduction = 0.30,
+    armorClass = "medium",
+    playerModel = "models/sb_sld/sb_sld.mdl",
+    classSWEP = nil,
+    isAvailableCloak = false
+})
+
+SWExp.Inventory:RegisterItem({
+    id = "armor_medium_t2",
+    name = "Средняя броня (Тир 2)",
+    description = "Стандартная броня клона.",
+    icon = "swexpicon/swexp-armor-medium.png",
+    width = 3,
+    height = 4,
+    slotType = "armor",
+    rarity = "uncommon",
+    worldModel = "models/vortexgaming/tc13u/armor/chest.mdl",
+    -- Уникальные параметры для sv_inventory
+    armorTier = 2,
+    armorReduction = 0.35,
+    armorClass = "medium",
+    playerModel = "models/sb_sld/sb_sld.mdl",
+    classSWEP = nil,
+    isAvailableCloak = false
+})
+
+SWExp.Inventory:RegisterItem({
+    id = "armor_medium_t3",
+    name = "Средняя броня (Тир 3)",
+    description = "Стандартная броня клона.",
+    icon = "swexpicon/swexp-armor-medium.png",
+    width = 3,
+    height = 4,
+    slotType = "armor",
+    rarity = "rare",
+    worldModel = "models/vortexgaming/tc13u/armor/chest.mdl",
+    -- Уникальные параметры для sv_inventory
+    armorTier = 3,
+    armorReduction = 0.40,
+    armorClass = "medium",
+    playerModel = "models/sb_sld/sb_sld.mdl",
+    classSWEP = nil,
+    isAvailableCloak = false
+})
+
+SWExp.Inventory:RegisterItem({
+    id = "armor_medium_t4",
+    name = "Средняя броня (Тир 4)",
+    description = "Стандартная броня клона.",
+    icon = "swexpicon/swexp-armor-medium.png",
+    width = 3,
+    height = 4,
+    slotType = "armor",
+    rarity = "epic",
+    worldModel = "models/vortexgaming/tc13u/armor/chest.mdl",
+    -- Уникальные параметры для sv_inventory
+    armorTier = 4,
+    armorReduction = 0.45,
+    armorClass = "medium",
+    playerModel = "models/sb_sld/sb_sld.mdl",
+    classSWEP = nil,
+    isAvailableCloak = false
+})
+
+SWExp.Inventory:RegisterItem({
+    id = "armor_medium_t5",
+    name = "Средняя броня (Тир 5)",
+    description = "Стандартная броня клона.",
+    icon = "swexpicon/swexp-armor-medium.png",
+    width = 3,
+    height = 4,
+    slotType = "armor",
+    rarity = "legendary",
+    worldModel = "models/vortexgaming/tc13u/armor/chest.mdl",
+    -- Уникальные параметры для sv_inventory
+    armorTier = 5,
+    armorReduction = 0.50,
+    armorClass = "medium",
+    playerModel = "models/sb_sld/sb_sld.mdl",
+    classSWEP = nil,
+    isAvailableCloak = false
+})
+
+SWExp.Inventory:RegisterItem({
+    id = "armor_heavy_t1",
+    name = "Тяжёлая броня (Тир 1)",
+    description = "Тяжёлая броня клона.",
+    icon = "swexpicon/swexp-armor-heavy.png",
+    width = 3,
+    height = 4,
+    slotType = "armor",
+    rarity = "common",
+    worldModel = "models/vortexgaming/tc13u/armor/chest.mdl",
+    -- Уникальные параметры для sv_inventory
+    armorTier = 1,
+    armorReduction = 0.40,
+    armorClass = "heavy",
+    playerModel = "models/sb_heavy/sb_heavy.mdl",
+    classSWEP = nil,
+    isAvailableCloak = false
+})
+
+SWExp.Inventory:RegisterItem({
+    id = "armor_heavy_t2",
+    name = "Тяжёлая броня (Тир 2)",
+    description = "Тяжёлая броня клона.",
+    icon = "swexpicon/swexp-armor-heavy.png",
+    width = 3,
+    height = 4,
+    slotType = "armor",
+    rarity = "uncommon",
+    worldModel = "models/vortexgaming/tc13u/armor/chest.mdl",
+    -- Уникальные параметры для sv_inventory
+    armorTier = 2,
+    armorReduction = 0.45,
+    armorClass = "heavy",
+    playerModel = "models/sb_heavy/sb_heavy.mdl",
+    classSWEP = nil,
+    isAvailableCloak = false
 })
 
 SWExp.Inventory:RegisterItem({
     id = "armor_heavy_t3",
     name = "Тяжёлая броня (Тир 3)",
-    description = "Усиленный комплект. Открывает слот для тяжёлого оружия. Поглощение: 50%.",
-    icon = "icon16/shield.png",
+    description = "Тяжёлая броня клона.",
+    icon = "swexpicon/swexp-armor-heavy.png",
     width = 3,
     height = 4,
     slotType = "armor",
     rarity = "rare",
-    worldModel = "models/props_combine/combine_suit.mdl",
+    worldModel = "models/vortexgaming/tc13u/armor/chest.mdl",
+    -- Уникальные параметры для sv_inventory
     armorTier = 3,
-    armorReduction = 0.99,
+    armorReduction = 0.50,
     armorClass = "heavy",
-    playerModel = "models/player/clone_heavy.mdl",
-    classSWEP = nil
+    playerModel = "models/sb_heavy/sb_heavy.mdl",
+    classSWEP = nil,
+    isAvailableCloak = false
+})
+
+SWExp.Inventory:RegisterItem({
+    id = "armor_heavy_t4",
+    name = "Тяжёлая броня (Тир 4)",
+    description = "Тяжёлая броня клона.",
+    icon = "swexpicon/swexp-armor-heavy.png",
+    width = 3,
+    height = 4,
+    slotType = "armor",
+    rarity = "epic",
+    worldModel = "models/vortexgaming/tc13u/armor/chest.mdl",
+    -- Уникальные параметры для sv_inventory
+    armorTier = 4,
+    armorReduction = 0.55,
+    armorClass = "heavy",
+    playerModel = "models/sb_heavy/sb_heavy.mdl",
+    classSWEP = nil,
+    isAvailableCloak = false
+})
+
+SWExp.Inventory:RegisterItem({
+    id = "armor_heavy_t5",
+    name = "Тяжёлая броня (Тир 5)",
+    description = "Тяжёлая броня клона.",
+    icon = "swexpicon/swexp-armor-heavy.png",
+    width = 3,
+    height = 4,
+    slotType = "armor",
+    rarity = "legendary",
+    worldModel = "models/vortexgaming/tc13u/armor/chest.mdl",
+    -- Уникальные параметры для sv_inventory
+    armorTier = 5,
+    armorReduction = 0.60,
+    armorClass = "heavy",
+    playerModel = "models/sb_heavy/sb_heavy.mdl",
+    classSWEP = nil,
+    isAvailableCloak = false
+})
+
+SWExp.Inventory:RegisterItem({
+    id = "armor_eng_t1",
+    name = "Инженерная броня (Тир 1)",
+    description = "Тяжёлая броня клона.",
+    icon = "swexpicon/swexp-armor-eng.png",
+    width = 3,
+    height = 4,
+    slotType = "armor",
+    rarity = "сommon",
+    worldModel = "models/vortexgaming/tc13u/armor/chest.mdl",
+    -- Уникальные параметры для sv_inventory
+    armorTier = 1,
+    armorReduction = 0.25,
+    armorClass = "engineer",
+    playerModel = "models/sb_eng/sb_eng.mdl",
+    classSWEP = "fort_datapad",
+    isAvailableCloak = false
+})
+
+SWExp.Inventory:RegisterItem({
+    id = "armor_eng_t2",
+    name = "Инженерная броня (Тир 2)",
+    description = "Тяжёлая броня клона.",
+    icon = "swexpicon/swexp-armor-eng.png",
+    width = 3,
+    height = 4,
+    slotType = "armor",
+    rarity = "unсommon",
+    worldModel = "models/vortexgaming/tc13u/armor/chest.mdl",
+    -- Уникальные параметры для sv_inventory
+    armorTier = 2,
+    armorReduction = 0.30,
+    armorClass = "engineer",
+    playerModel = "models/sb_eng/sb_eng.mdl",
+    classSWEP = "fort_datapad",
+    isAvailableCloak = false
+})
+
+SWExp.Inventory:RegisterItem({
+    id = "armor_eng_t3",
+    name = "Инженерная броня (Тир 3)",
+    description = "Тяжёлая броня клона.",
+    icon = "swexpicon/swexp-armor-eng.png",
+    width = 3,
+    height = 4,
+    slotType = "armor",
+    rarity = "rare",
+    worldModel = "models/vortexgaming/tc13u/armor/chest.mdl",
+    -- Уникальные параметры для sv_inventory
+    armorTier = 3,
+    armorReduction = 0.35,
+    armorClass = "engineer",
+    playerModel = "models/sb_eng/sb_eng.mdl",
+    classSWEP = "fort_datapad",
+    isAvailableCloak = false
+})
+
+SWExp.Inventory:RegisterItem({
+    id = "armor_eng_t4",
+    name = "Инженерная броня (Тир 4)",
+    description = "Тяжёлая броня клона.",
+    icon = "swexpicon/swexp-armor-eng.png",
+    width = 3,
+    height = 4,
+    slotType = "armor",
+    rarity = "epic",
+    worldModel = "models/vortexgaming/tc13u/armor/chest.mdl",
+    -- Уникальные параметры для sv_inventory
+    armorTier = 4,
+    armorReduction = 0.40,
+    armorClass = "engineer",
+    playerModel = "models/sb_eng/sb_eng.mdl",
+    classSWEP = "fort_datapad",
+    isAvailableCloak = false
+})
+
+SWExp.Inventory:RegisterItem({
+    id = "armor_eng_t5",
+    name = "Инженерная броня (Тир 5)",
+    description = "Тяжёлая броня клона.",
+    icon = "swexpicon/swexp-armor-eng.png",
+    width = 3,
+    height = 4,
+    slotType = "armor",
+    rarity = "legendary",
+    worldModel = "models/vortexgaming/tc13u/armor/chest.mdl",
+    -- Уникальные параметры для sv_inventory
+    armorTier = 5,
+    armorReduction = 0.45,
+    armorClass = "engineer",
+    playerModel = "models/sb_eng/sb_eng.mdl",
+    classSWEP = "fort_datapad",
+    isAvailableCloak = false
+})
+
+SWExp.Inventory:RegisterItem({
+    id = "armor_med_t1",
+    name = "Броня медика (Тир 1)",
+    description = "Медецинская броня клона.",
+    icon = "swexpicon/swexp-armor-medic.png",
+    width = 3,
+    height = 4,
+    slotType = "armor",
+    rarity = "common",
+    worldModel = "models/vortexgaming/tc13u/armor/chest.mdl",
+    -- Уникальные параметры для sv_inventory
+    armorTier = 1,
+    armorReduction = 0.25,
+    armorClass = "medical",
+    playerModel = "models/sb_med/sb_med.mdl",
+    classSWEP = {"weapon_defibrillator", "arccw_stimpistol"},
+    isAvailableCloak = false
+})
+
+SWExp.Inventory:RegisterItem({
+    id = "armor_med_t2",
+    name = "Броня медика (Тир 2)",
+    description = "Медецинская броня клона.",
+    icon = "swexpicon/swexp-armor-medic.png",
+    width = 3,
+    height = 4,
+    slotType = "armor",
+    rarity = "uncommon",
+    worldModel = "models/vortexgaming/tc13u/armor/chest.mdl",
+    -- Уникальные параметры для sv_inventory
+    armorTier = 2,
+    armorReduction = 0.30,
+    armorClass = "medical",
+    playerModel = "models/sb_med/sb_med.mdl",
+    classSWEP = {"weapon_defibrillator", "arccw_stimpistol"},
+    isAvailableCloak = false
+})
+
+SWExp.Inventory:RegisterItem({
+    id = "armor_med_t3",
+    name = "Броня медика (Тир 3)",
+    description = "Медецинская броня клона.",
+    icon = "swexpicon/swexp-armor-medic.png",
+    width = 3,
+    height = 4,
+    slotType = "armor",
+    rarity = "rare",
+    worldModel = "models/vortexgaming/tc13u/armor/chest.mdl",
+    -- Уникальные параметры для sv_inventory
+    armorTier = 3,
+    armorReduction = 0.35,
+    armorClass = "medical",
+    playerModel = "models/sb_med/sb_med.mdl",
+    classSWEP = {"weapon_defibrillator", "arccw_stimpistol"},
+    isAvailableCloak = false
+})
+
+SWExp.Inventory:RegisterItem({
+    id = "armor_med_t4",
+    name = "Броня медика (Тир 4)",
+    description = "Медецинская броня клона.",
+    icon = "swexpicon/swexp-armor-medic.png",
+    width = 3,
+    height = 4,
+    slotType = "armor",
+    rarity = "epic",
+    worldModel = "models/vortexgaming/tc13u/armor/chest.mdl",
+    -- Уникальные параметры для sv_inventory
+    armorTier = 4,
+    armorReduction = 0.40,
+    armorClass = "medical",
+    playerModel = "models/sb_med/sb_med.mdl",
+    classSWEP = {"weapon_defibrillator", "arccw_stimpistol"},
+    isAvailableCloak = false
+})
+
+SWExp.Inventory:RegisterItem({
+    id = "armor_med_t5",
+    name = "Броня медика (Тир 5)",
+    description = "Медецинская броня клона.",
+    icon = "swexpicon/swexp-armor-medic.png",
+    width = 3,
+    height = 4,
+    slotType = "armor",
+    rarity = "legendary",
+    worldModel = "models/vortexgaming/tc13u/armor/chest.mdl",
+    -- Уникальные параметры для sv_inventory
+    armorTier = 5,
+    armorReduction = 0.45,
+    armorClass = "medical",
+    playerModel = "models/sb_med/sb_med.mdl",
+    classSWEP = {"weapon_defibrillator", "arccw_stimpistol"},
+    isAvailableCloak = false
+})
+
+
+-- Строительные ресурсы (фортификации)
+SWExp.Inventory:RegisterItem({
+    id          = "fort_supply",
+    name        = "Строительные ресурсы",
+    description = "Пакет полевых материалов для возведения фортификаций. Производится на Ассемблере.",
+    icon        = "icon16/brick.png",
+    width       = 2,
+    height      = 2,
+    stackable   = true,
+    maxStack    = 50,
+    rarity      = "common",
+    canDrop     = true,
 })
 
 -- Экспедиционные предметы
 SWExp.Inventory:RegisterItem({
+    id = "tool_flashlight",
+    name = "Фонарик",
+    description = "Стандартный фонарик. Экипируйте в специальный слот — тогда клавиша фонарика (F) будет работать.",
+    icon = "icon16/lightbulb.png",
+    width = 1,
+    height = 2,
+    slotType = "special",
+    rarity = "uncommon",
+    canDrop = true,
+})
+
+SWExp.Inventory:RegisterItem({
     id = "tool_scanner",
     name = "Научный сканер",
     description = "Необходим для сканирования аномалий и Вонгских биотехнологий. При потере крафтится заново.",
-    icon = "icon16/transmit.png",
+    icon = "swexpicon/swexp-swexp-atom.png",
     width = 2,
     height = 2,
     slotType = "special",
@@ -136,12 +605,52 @@ SWExp.Inventory:RegisterItem({
     id = "key_tier1",
     name = "Ключ врат (Tier 1)",
     description = "Позволяет пройти во Вторую Зону планеты.",
-    icon = "icon16/key.png",
+    icon = "swexpicon/swexp-unlock.png",
     width = 1,
     height = 1,
     canDrop = true,
     rarity = "uncommon",
-    worldModel = "models/props_junk/PopCan01a.mdl"
+    worldModel = "models/props_junk/PopCan01a.mdl",
+    portalTier = 1
+})
+
+SWExp.Inventory:RegisterItem({
+    id = "key_tier2",
+    name = "Ключ врат (Tier 2)",
+    description = "Позволяет пройти в Третью Зону планеты.",
+    icon = "swexpicon/swexp-unlock.png",
+    width = 1,
+    height = 1,
+    canDrop = true,
+    rarity = "rare",
+    worldModel = "models/props_junk/PopCan01a.mdl",
+    portalTier = 2
+})
+
+SWExp.Inventory:RegisterItem({
+    id = "key_tier3",
+    name = "Ключ врат (Tier 3)",
+    description = "Позволяет пройти в Четвёртую Зону планеты.",
+    icon = "swexpicon/swexp-unlock.png",
+    width = 1,
+    height = 1,
+    canDrop = true,
+    rarity = "epic",
+    worldModel = "models/props_junk/PopCan01a.mdl",
+    portalTier = 3
+})
+
+SWExp.Inventory:RegisterItem({
+    id = "key_tier4",
+    name = "Ключ врат (Tier 4)",
+    description = "Позволяет пройти в Сердце Тьмы — самую опасную зону планеты.",
+    icon = "swexpicon/swexp-unlock.png",
+    width = 1,
+    height = 1,
+    canDrop = true,
+    rarity = "legendary",
+    worldModel = "models/props_junk/PopCan01a.mdl",
+    portalTier = 4
 })
 
 -- Медикаменты
@@ -149,7 +658,7 @@ SWExp.Inventory:RegisterItem({
     id = "medkit",
     name = "Аптечка",
     description = "Постепенно восстанавливает 50 HP за 10 секунд (5 HP/сек)",
-    icon = "icon16/heart.png",
+    icon = "swexpicon/swexp-health.png",
     width = 2,
     height = 1,
     slotType = "medical",
@@ -166,7 +675,7 @@ SWExp.Inventory:RegisterItem({
     id = "medkit_advanced",
     name = "Улучшенная аптечка",
     description = "Постепенно восстанавливает 100 HP за 10 секунд (10 HP/сек)",
-    icon = "icon16/heart_add.png",
+    icon = "swexpicon/swexp-health.png",
     width = 2,
     height = 2,
     slotType = "medical",
@@ -181,9 +690,9 @@ SWExp.Inventory:RegisterItem({
 -- Оружие
 SWExp.Inventory:RegisterItem({
     id = "weapon_dc15a",
-    name = "DC-15A Бластерная винтовка",
-    description = "Стандартная бластерная винтовка клонов",
-    icon = "icon16/gun.png",
+    name = "DC-15A ",
+    description = "",
+    icon = "swexpicon/swexp-dc-15a.png",
     width = 4,
     height = 2,
     slotType = "primary",
@@ -210,7 +719,7 @@ SWExp.Inventory:RegisterItem({
     id          = "mat_basic",
     name        = "Материалы",
     description = "Ресурс добычи. Сдайте на Ассемблере — поступят в общий банк отряда.",
-    icon        = "icon16/cog.png",
+    icon        = "icon16/settings.png",
     width       = 1,
     height      = 1,
     stackable   = true,
@@ -226,7 +735,7 @@ SWExp.Inventory:RegisterItem({
     id          = "research_data",
     name        = "Данные исследования",
     description = "Полевые данные, собранные сканером. Сдайте на терминале исследований для пополнения банка ОИ.",
-    icon        = "icon16/database.png",
+    icon        = "icon16/battery.png",
     width       = 1,
     height      = 1,
     stackable   = true,

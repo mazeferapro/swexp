@@ -14,6 +14,14 @@ if CLIENT then return end
 
 SWExp.Assembler = SWExp.Assembler or {}
 
+-- Локальный fallback для rate-limit (если core/sv_net_ratelimit не загружен)
+local function RateOk(ply, key, cd)
+    if SWExp and SWExp.Net and SWExp.Net.RateCheck then
+        return SWExp.Net:RateCheck(ply, key, cd)
+    end
+    return IsValid(ply)
+end
+
 -- ============================================================
 -- Состояние сервера (кэш; сохраняется в MySQL)
 -- ============================================================
@@ -39,6 +47,28 @@ util.AddNetworkString("SWExp::Assembler_TechLevel")     -- сервер → кл
 -- ============================================================
 -- Вспомогательные функции работы с инвентарём
 -- ============================================================
+
+-- Синхронизирует NWInt "SWExp_MatInHand" для клиентской метки ассемблера.
+-- Вызывается при входе и после любого изменения мат. в инвентаре игрока.
+local function SyncMatNW(ply)
+    if not IsValid(ply) then return end
+    local charID  = SWExp.Inventory and SWExp.Inventory:GetCharacterID(ply)
+    local total   = 0
+    if charID then
+        local steamID = ply:SteamID64()
+        local stor = SWExp.Inventory.PlayerInventories[steamID]
+                     and SWExp.Inventory.PlayerInventories[steamID][charID]
+        if stor then
+            for _, item in pairs(stor.items) do
+                if item.itemID == "mat_basic" then
+                    total = total + (item.amount or 1)
+                end
+            end
+        end
+    end
+    ply:SetNWInt("SWExp_MatInHand", total)
+end
+SWExp.Assembler.SyncMatNW = SyncMatNW  -- экспортируем для sv_inventory и т.п.
 
 local function CountMatInInventory(ply)
     if not SWExp.Inventory then return 0 end
@@ -136,8 +166,8 @@ local function InitDB()
     if SWExp.AssemblerConfig then
         for rankID, def in pairs(SWExp.AssemblerConfig.DefaultDailyLimits) do
             MySQLite.query(
-                "INSERT IGNORE INTO `swexp_assembler_limits` (`rank_id`,`daily_limit`) VALUES ("
-                .. MySQLite.SQLStr(rankID) .. "," .. def .. ");"
+                string.format("INSERT IGNORE INTO `swexp_assembler_limits` (`rank_id`,`daily_limit`) VALUES (%s, %d);",
+                    MySQLite.SQLStr(rankID), tonumber(def) or 30)
             )
         end
     end
@@ -172,10 +202,11 @@ end)
 
 local function GetUsedToday(playerDBID, callback)
     if not MySQLite then callback(0) return end
+    local pid = tonumber(playerDBID) or 0
     local today = TodayDate()
     MySQLite.query(
-        "SELECT `used` FROM `swexp_assembler_usage` WHERE `player_id`=" .. playerDBID
-        .. " AND `usage_date`='" .. today .. "'",
+        string.format("SELECT `used` FROM `swexp_assembler_usage` WHERE `player_id`=%d AND `usage_date`=%s",
+            pid, MySQLite.SQLStr(today)),
         function(rows)
             if rows and rows[1] then
                 callback(tonumber(rows[1].used) or 0)
@@ -189,11 +220,30 @@ end
 -- Добавить к использованию
 local function AddUsage(playerDBID, amount)
     if not MySQLite then return end
+    local pid = tonumber(playerDBID) or 0
+    local amt = tonumber(amount) or 0
     local today = TodayDate()
     MySQLite.query(
-        "INSERT INTO `swexp_assembler_usage` (`player_id`,`usage_date`,`used`) VALUES ("
-        .. playerDBID .. ",'" .. today .. "'," .. amount
-        .. ") ON DUPLICATE KEY UPDATE `used`=`used`+" .. amount .. ";"
+        string.format(
+            "INSERT INTO `swexp_assembler_usage` (`player_id`,`usage_date`,`used`) VALUES (%d, %s, %d) " ..
+            "ON DUPLICATE KEY UPDATE `used`=`used`+%d;",
+            pid, MySQLite.SQLStr(today), amt, amt
+        )
+    )
+end
+
+-- Уменьшить использование (при сдаче материалов) — не ниже нуля
+local function ReduceUsage(playerDBID, amount)
+    if not MySQLite then return end
+    local pid = tonumber(playerDBID) or 0
+    local amt = tonumber(amount) or 0
+    local today = TodayDate()
+    MySQLite.query(
+        string.format(
+            "UPDATE `swexp_assembler_usage` SET `used`=GREATEST(0, `used`-%d) " ..
+            "WHERE `player_id`=%d AND `usage_date`=%s;",
+            amt, pid, MySQLite.SQLStr(today)
+        )
     )
 end
 
@@ -268,6 +318,7 @@ end
 
 net.Receive("SWExp::Assembler_DepositReq", function(len, ply)
     if not IsValid(ply) then return end
+    if not RateOk(ply, "Assembler_DepositReq") then return end
 
     local amount = RemoveAllMatFromInventory(ply)
     if amount <= 0 then
@@ -284,18 +335,39 @@ net.Receive("SWExp::Assembler_DepositReq", function(len, ply)
     SWExp.Assembler._bank = SWExp.Assembler._bank + amount
     if MySQLite then
         MySQLite.query(
-            "UPDATE `swexp_assembler_bank` SET `materials`=" .. SWExp.Assembler._bank .. " WHERE `id`=1;"
+            string.format("UPDATE `swexp_assembler_bank` SET `materials`=%d WHERE `id`=1;",
+                tonumber(SWExp.Assembler._bank) or 0)
         )
     end
 
     print(string.format("[SWExp|Asm] %s сдал %d мат. Банк: %d", ply:Nick(), amount, SWExp.Assembler._bank))
 
-    net.Start("SWExp::Assembler_DepositResult")
-        net.WriteBool(true)
-        net.WriteString("")
-        net.WriteInt(amount, 16)
-        net.WriteInt(SWExp.Assembler._bank, 32)
-    net.Send(ply)
+    SyncMatNW(ply)  -- обнуляем метку ассемблера над головой
+
+    -- Сбрасываем использованный лимит на количество сданных материалов
+    local playerDBID = GetPlayerDBID(ply)
+    if playerDBID and MySQLite then
+        ReduceUsage(playerDBID, amount)
+        -- Получаем обновлённое значение и отправляем клиенту
+        GetUsedToday(playerDBID, function(newUsed)
+            net.Start("SWExp::Assembler_DepositResult")
+                net.WriteBool(true)
+                net.WriteString("")
+                net.WriteInt(amount, 16)
+                net.WriteInt(SWExp.Assembler._bank, 32)
+                net.WriteBool(true)           -- флаг: есть обновление лимита
+                net.WriteUInt(newUsed, 16)
+            net.Send(ply)
+        end)
+    else
+        net.Start("SWExp::Assembler_DepositResult")
+            net.WriteBool(true)
+            net.WriteString("")
+            net.WriteInt(amount, 16)
+            net.WriteInt(SWExp.Assembler._bank, 32)
+            net.WriteBool(false)  -- нет обновления лимита
+        net.Send(ply)
+    end
 
     BroadcastBankUpdate(SWExp.Assembler._bank)
 end)
@@ -306,9 +378,12 @@ end)
 
 net.Receive("SWExp::Assembler_CraftReq", function(len, ply)
     if not IsValid(ply) then return end
+    if not RateOk(ply, "Assembler_CraftReq") then return end
 
     local recipeID = net.ReadString()
     if not recipeID or recipeID == "" then return end
+    -- Лимит длины: ID рецепта не может быть длиннее 64 символов
+    if #recipeID > 64 then return end
 
     local cfg = SWExp.AssemblerConfig
     if not cfg then
@@ -409,6 +484,8 @@ net.Receive("SWExp::Assembler_CraftReq", function(len, ply)
         -- Передаём сколько использовано сегодня ПОСЛЕ крафта
         local newUsed = usedToday + cost
 
+        SyncMatNW(ply)  -- обновляем метку ассемблера (предмет добавлен в инвентарь)
+
         net.Start("SWExp::Assembler_CraftResult")
             net.WriteBool(true)
             net.WriteString(craftedName)
@@ -433,6 +510,7 @@ end)
 
 net.Receive("SWExp::Assembler_SetLimit", function(len, ply)
     if not IsValid(ply) then return end
+    if not RateOk(ply, "Assembler_SetLimit") then return end
 
     -- Только командиры и выше (CMDR, MCMDR) или админ
     local rank = ply:GetNWString("swexp_rank", "")
@@ -447,15 +525,18 @@ net.Receive("SWExp::Assembler_SetLimit", function(len, ply)
     local newLimit = net.ReadUInt(16)
 
     if not rankID or rankID == "" then return end
+    if #rankID > 32 then return end
     newLimit = math.Clamp(newLimit, 0, 9999)
 
     SWExp.Assembler._limits[rankID] = newLimit
 
     if MySQLite then
         MySQLite.query(
-            "INSERT INTO `swexp_assembler_limits` (`rank_id`,`daily_limit`) VALUES ("
-            .. MySQLite.SQLStr(rankID) .. "," .. newLimit
-            .. ") ON DUPLICATE KEY UPDATE `daily_limit`=" .. newLimit .. ";"
+            string.format(
+                "INSERT INTO `swexp_assembler_limits` (`rank_id`,`daily_limit`) VALUES (%s, %d) " ..
+                "ON DUPLICATE KEY UPDATE `daily_limit`=%d;",
+                MySQLite.SQLStr(rankID), newLimit, newLimit
+            )
         )
     end
 
@@ -475,12 +556,17 @@ end)
 
 hook.Add("PlayerInitialSpawn", "SWExp::Assembler_SyncOnJoin", function(ply)
     timer.Simple(5, function()
-        if IsValid(ply) then
-            net.Start("SWExp::Assembler_Update")
-                net.WriteInt(SWExp.Assembler._bank, 32)
-            net.Send(ply)
-        end
+        if not IsValid(ply) then return end
+        net.Start("SWExp::Assembler_Update")
+            net.WriteInt(SWExp.Assembler._bank, 32)
+        net.Send(ply)
+        SyncMatNW(ply)  -- синхронизируем количество мат. в инвентаре сразу при входе
     end)
+end)
+
+-- Обновляем NW при любом изменении инвентаря (если инвентарь поддерживает хук)
+hook.Add("SWExp::InventoryChanged", "SWExp::Assembler_SyncMatNW", function(ply)
+    if IsValid(ply) then SyncMatNW(ply) end
 end)
 
 -- ============================================================
@@ -495,3 +581,4 @@ hook.Add("SWExp::TechLevelChanged", "SWExp::Assembler_BroadcastTechLevel", funct
 end)
 
 print("[SWExp] Модуль ассемблера (сервер) загружен.")
+

@@ -255,40 +255,8 @@ function SWExp.Inventory:OpenUI()
     armorSlot.SlotIndex = 1
     self._armorSlot = armorSlot
 
-    -- DModelPanel внутри слота брони для отображения playerModel предмета
-    local armorModelPanel = vgui.Create("DModelPanel", armorSlot)
-    armorModelPanel:SetPos(4, 4)
-    armorModelPanel:SetSize(ARMOR_SIZE - 8, ARMOR_SIZE - 8)
-    armorModelPanel:SetVisible(false)
-    armorModelPanel:SetMouseInputEnabled(false)
-    armorModelPanel:SetKeyboardInputEnabled(false)
-    armorModelPanel.LayoutEntity = function() end -- отключаем авто-поворот
-    self._armorModelPanel = armorModelPanel
-
-    local function UpdateArmorModel()
-        local eq   = self.LocalData.equipment["armor"]
-        local item = eq and eq[1]
-        if item then
-            local d = self:GetItemData(item.itemID)
-            if d and d.playerModel and d.playerModel ~= "" then
-                if IsValid(armorModelPanel) then
-                    armorModelPanel:SetModel(d.playerModel)
-                    -- Фиксированная камера — вся фигура в кадре
-                    armorModelPanel:SetCamPos(Vector(80, 0, 38))
-                    armorModelPanel:SetLookAt(Vector(0, 0, 38))
-                    armorModelPanel:SetFOV(22)
-                    armorModelPanel:SetVisible(true)
-                end
-                return
-            end
-        end
-        if IsValid(armorModelPanel) then
-            armorModelPanel:SetVisible(false)
-        end
-    end
-
+    local function UpdateArmorModel() end
     self._updateArmorModel = UpdateArmorModel
-    UpdateArmorModel()
 
     armorSlot.Paint = function(pnl, w, h)
         local hov  = pnl:IsHovered()
@@ -314,8 +282,7 @@ function SWExp.Inventory:OpenUI()
 
         if item then
             local d = self:GetItemData(item.itemID)
-            -- Если нет playerModel — fallback на иконку
-            if d and (not d.playerModel or d.playerModel == "") and d.icon then
+            if d and d.icon then
                 surface.SetDrawColor(255, 255, 255)
                 surface.SetMaterial(Material(d.icon))
                 surface.DrawTexturedRect(10, 10, w - 20, h - 20)
@@ -377,7 +344,7 @@ function SWExp.Inventory:OpenUI()
     SWUI.CreateSectionHeader(eqpPanel, "СНАРЯЖЕНИЕ", 0, 0, COL_EQP)
 
     -- Слоты: primary / secondary / heavy / special / medical
-    local slotOrder = {"primary", "secondary", "heavy", "special", "medical"}
+    local slotOrder = {"primary", "secondary", "heavy", "special", "medical", "grenade"}
     local slotLabels = {
         primary   = "ОСНОВНОЕ ОРУЖИЕ",
         secondary = "ВТОРОСТЕПЕННОЕ",
@@ -386,7 +353,7 @@ function SWExp.Inventory:OpenUI()
         medical   = "МЕДИЦИНА",
     }
     -- special и medical: всегда открыты все слоты, без блокировки бронёй
-    local ALWAYS_OPEN = { special = true, medical = true }
+    local ALWAYS_OPEN = { special = true, medical = true, grenade = true }
 
     self._equipSlots = {}
 
@@ -730,21 +697,6 @@ function SWExp.Inventory:DrawItems(grid, storageData, gridType)
         ip:SetText("")
         ip:MoveToFront()
 
-        -- Только для предметов брони — DModelPanel с playerModel
-        if itemData.slotType == "armor" and itemData.playerModel and itemData.playerModel ~= "" then
-            local mp = vgui.Create("DModelPanel", ip)
-            mp:SetPos(0, 0)
-            mp:SetSize(itemW, itemH)
-            mp:SetMouseInputEnabled(false)
-            mp:SetKeyboardInputEnabled(false)
-            mp.LayoutEntity = function() end
-            mp:SetModel(itemData.playerModel)
-            -- Фиксированная камера как у основного DModelPanel персонажа
-            mp:SetCamPos(Vector(80, 0, 38))
-            mp:SetLookAt(Vector(0, 0, 38))
-            mp:SetFOV(22)
-        end
-
         ip.Paint = function(pnl, w, h)
             local rarCol  = self:GetRarityColor(itemData.rarity)
             local hov     = pnl:IsHovered()
@@ -752,9 +704,7 @@ function SWExp.Inventory:DrawItems(grid, storageData, gridType)
 
             draw.RoundedBox(4, 2, 2, w - 4, h - 4, ColorAlpha(rarCol, hov and 160 or 90))
 
-            -- Броня с playerModel — модель рисуется через DModelPanel выше, иконку не рисуем
-            -- Остальные предметы (или броня без playerModel) — иконка
-            if not (itemData.slotType == "armor" and itemData.playerModel and itemData.playerModel ~= "") and itemData.icon then
+            if itemData.icon then
                 local sz = math.min(w, h) - 10
                 surface.SetDrawColor(255, 255, 255)
                 surface.SetMaterial(Material(itemData.icon))
@@ -1285,7 +1235,7 @@ function SWExp.Inventory:OpenInventoryContextMenu(itemPanel, equipSlotType, equi
                 return
             end
             local slotCfg  = self.Config.EquipmentSlots[itemData.slotType]
-            local alwaysOpen = { special = true, medical = true }
+            local alwaysOpen = { special = true, medical = true, grenade = true }
             local available = alwaysOpen[itemData.slotType] and slotCfg.total or self:GetDynamicSlotCount(itemData.slotType)
             for si = 1, available do
                 local eq = self.LocalData.equipment[itemData.slotType]
@@ -1380,7 +1330,7 @@ end
 
 function SWExp.Inventory:GetDynamicSlotCount(slotType)
     -- Слоты, не зависящие от класса брони: всегда открыты полностью
-    local alwaysOpen = { special = true, medical = true }
+    local alwaysOpen = { special = true, medical = true, grenade = true }
     if alwaysOpen[slotType] then
         local cfg = self.Config.EquipmentSlots[slotType]
         return cfg and cfg.total or 1
@@ -1394,12 +1344,12 @@ function SWExp.Inventory:GetDynamicSlotCount(slotType)
         if d then cls = d.armorClass or "none" end
     end
     local map = {
-        light    = { primary = 1, secondary = 1, heavy = 0 },
-        medium   = { primary = 2, secondary = 1, heavy = 0 },
-        heavy    = { primary = 1, secondary = 1, heavy = 1 },
-        engineer = { primary = 1, secondary = 1, heavy = 0 },
-        medical  = { primary = 1, secondary = 1, heavy = 0 },
-        none     = { primary = 1, secondary = 0, heavy = 0 },
+        light    = { primary = 1, secondary = 2, heavy = 0 },
+        medium   = { primary = 2, secondary = 2, heavy = 0 },
+        heavy    = { primary = 1, secondary = 2, heavy = 1 },
+        engineer = { primary = 1, secondary = 2, heavy = 0 },
+        medical  = { primary = 1, secondary = 2, heavy = 0 },
+        none     = { primary = 0, secondary = 1, heavy = 0 },
     }
     local limits = map[cls] or map["none"]
     local fromMap = limits[slotType]
@@ -1421,8 +1371,12 @@ function SWExp.Inventory:_BuildBagGrid(items, bagW)
     -- Сначала считаем суммарную площадь предметов чтобы подобрать минимальную высоту
     local totalCells = 0
     for _, item in pairs(items or {}) do
-        local d = self:GetItemData(item.itemID)
-        if d then totalCells = totalCells + (d.width or 1) * (d.height or 1) end
+        if item.isAmmo then
+            totalCells = totalCells + 1  -- амmo занимает 1x1
+        else
+            local d = self:GetItemData(item.itemID)
+            if d then totalCells = totalCells + (d.width or 1) * (d.height or 1) end
+        end
     end
     -- Минимум 8 строк, расширяем при необходимости (запас +2 строки)
     local BAG_H = math.max(8, math.ceil(totalCells / BAG_W) + 2)
@@ -1431,6 +1385,17 @@ function SWExp.Inventory:_BuildBagGrid(items, bagW)
     local placed = {}
 
     for uid, item in pairs(items or {}) do
+        -- Боезапас отображается как 1x1 ячейка
+        if item.isAmmo then
+            local fakeD = { width = 1, height = 1 }
+            local px, py = self:FindFreeSlot(grid, BAG_W, BAG_H, fakeD)
+            if px then
+                grid[px .. "_" .. py] = uid
+                placed[uid] = { itemID = item.itemID, ammoType = item.ammoType, amount = item.amount or 0, isAmmo = true, posX = px, posY = py, rotated = false }
+            end
+            continue
+        end
+
         local d = self:GetItemData(item.itemID)
         if not d then continue end
 
@@ -1597,14 +1562,67 @@ function SWExp.Inventory:_DrawBagItems(entIndex, rawItems)
     end
 
     for uid, item in pairs(placed) do
+        local posX = (item.posX - 1) * CELL
+        local posY = (item.posY - 1) * CELL
+
+        -- Специальная отрисовка для боезапаса
+        if item.isAmmo then
+            local ip = vgui.Create("DButton", grid)
+            ip.IsItemPanel = true
+            ip.UniqueID    = uid
+            ip.Item        = item
+            ip.GridType    = "bag"
+            ip:SetPos(posX, posY)
+            ip:SetSize(CELL, CELL)
+            ip:SetText("")
+            ip:MoveToFront()
+
+            local ammoColor = Color(255, 200, 50)
+
+            ip.Paint = function(pnl, w, h)
+                local hov = pnl:IsHovered()
+                draw.RoundedBox(4, 2, 2, w - 4, h - 4, hov and Color(80, 60, 10, 180) or Color(50, 38, 8, 160))
+                draw.SimpleText("[AMO]", "SWUI.Tiny", w / 2, h / 2 - 8, ammoColor, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+                draw.SimpleText(item.ammoType or "", "SWUI.Tiny", w / 2, h / 2 + 6, Color(220, 200, 100), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+                SWUI.DrawTextShadow("x" .. (item.amount or 0), "SWUI.Tiny", w - 4, h - 14, color_white, TEXT_ALIGN_RIGHT)
+                surface.SetDrawColor(ammoColor)
+                surface.DrawOutlinedRect(2, 2, w - 4, h - 4, 1)
+            end
+
+            ip.OnMousePressed = function(pnl, btn)
+                if btn == MOUSE_RIGHT then
+                    SWUI.HideTooltip()
+                    local capturedUID = uid
+                    local capturedEnt = entIndex
+                    local menu = DermaMenu()
+                    menu:SetMinimumWidth(200)
+                    local opt = menu:AddOption("Взять боезапас")
+                    opt:SetFont("SWUI.Body")
+                    opt:SetTextColor(Color(80, 220, 80))
+                    opt:SetTall(34)
+                    opt.DoClick = function()
+                        netstream.Start("SWExp::InventoryTakeFromBag", {
+                            entIndex = capturedEnt,
+                            uniqueID = capturedUID
+                        })
+                    end
+                    menu:Open()
+                end
+            end
+
+            ip.OnCursorEntered = function(pnl)
+                SWUI.ShowTooltip("Боезапас: " .. (item.ammoType or "?"), nil, "Количество: " .. (item.amount or 0) .. " ед.")
+            end
+            ip.OnCursorExited = function() SWUI.HideTooltip() end
+            continue
+        end
+
         local d = self:GetItemData(item.itemID)
         if not d then continue end
 
         -- В сумке предметы всегда без поворота
         local itemW = (d.width  or 1) * CELL
         local itemH = (d.height or 1) * CELL
-        local posX  = (item.posX - 1) * CELL
-        local posY  = (item.posY - 1) * CELL
 
         local ip = vgui.Create("DButton", grid)
         ip.IsItemPanel = true
@@ -1677,7 +1695,7 @@ function SWExp.Inventory:_DrawBagItems(entIndex, rawItems)
                             })
                         else
                             local slotCfg    = self.Config.EquipmentSlots[st]
-                            local alwaysOpen = { special = true, medical = true }
+                            local alwaysOpen = { special = true, medical = true, grenade = true }
                             local available  = alwaysOpen[st] and slotCfg.total or self:GetDynamicSlotCount(st)
                             -- Ищем первый свободный слот
                             for si = 1, available do
@@ -1798,7 +1816,7 @@ function SWExp.Inventory:EndBagDrag()
 
     -- 2. Слоты снаряжения
     if not dropped and self._equipSlots then
-        local ALWAYS_OPEN = { special = true }
+        local ALWAYS_OPEN = { special = true, grenade = true }
         for slotType, slots in pairs(self._equipSlots) do
             for i, slot in pairs(slots) do
                 if IsValid(slot) then

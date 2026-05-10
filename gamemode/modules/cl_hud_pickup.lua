@@ -25,12 +25,12 @@ local CFG = {
     Duration     = 4.0,   -- сколько секунд висит
     FadeIn       = 0.2,   -- время появления
     FadeOut      = 0.45,  -- время исчезновения
-    SlideTime    = 0.3,   -- время слайда справа
+    SlideTime    = 0.3,   -- время слайда слева
     PanelW       = 220,   -- ширина панели
     PanelH       = 42,    -- высота панели
     Gap          = 5,     -- промежуток между панелями
-    MarginRight  = 30,    -- отступ от правого края
-    MarginBottom = 165,   -- отступ от низа экрана (над ammo HUD)
+    MarginLeft   = 30,    -- отступ от левого края
+    MarginTop    = 30,    -- отступ от верха экрана
 }
 
 -- ============================================================
@@ -63,7 +63,7 @@ local function AddFeedItem(name, icon, count)
         icon      = icon and Material(icon) or nil,
         count     = count or 1,
         startTime = CurTime(),
-        slideX    = S(CFG.PanelW + 40),
+        slideX    = -S(CFG.PanelW + 40),  -- слайд из-за левого края
     })
 
     -- Звук
@@ -110,9 +110,9 @@ hook.Add('HUDPaint', 'SWExp::DrawPickupFeed', function()
     local ph  = S(CFG.PanelH)
     local gap = S(CFG.Gap)
 
-    local totalH = #Feed * (ph + gap) - gap
-    local baseX  = sw - pw - S(CFG.MarginRight)
-    local baseY  = sh - S(CFG.MarginBottom) - totalH
+    -- Левый верхний угол. Pickup feed — самый верхний из трёх HUD'ов.
+    local baseX  = S(CFG.MarginLeft)
+    local baseY  = S(CFG.MarginTop)
 
     local toRemove = {}
 
@@ -200,6 +200,14 @@ hook.Add('HUDPaint', 'SWExp::DrawPickupFeed', function()
         )
 
         surface.SetAlphaMultiplier(1)
+    end
+
+    -- Экспортируем итоговую высоту блока, чтобы другие HUD'ы стыковались ниже
+    local visible = #Feed - #toRemove
+    if visible > 0 then
+        SWExp_PickupFeedHeight = visible * (ph + gap)
+    else
+        SWExp_PickupFeedHeight = 0
     end
 
     -- Удаляем устаревшие

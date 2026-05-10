@@ -64,7 +64,32 @@ hook.Add('SWExp::PlayerIDRetrieved', 'SWExp::LoadCharacters', function(pPlayer, 
         string.format('SELECT * FROM `swexp_characters` WHERE player_id = %s ORDER BY id ASC;',
             MySQLite.SQLStr(playerID)),
         function(tChars)
-            pPlayer.SWExp_Characters = tChars or {}
+            tChars = tChars or {}
+
+            -- Нормализуем модели (та же логика, что и в SWExp.Chars:Load)
+            local DEFAULT_MODEL = 'models/player/olive/cadet/cadet.mdl'
+            for _, char in ipairs(tChars) do
+                if not char.model or char.model == "" or char.model == "NULL" then
+                    char.model = DEFAULT_MODEL
+                end
+            end
+
+            -- Добавляем виртуального ADMIN-персонажа ТОЛЬКО в локальный список.
+            -- player_id = -1 и _virtual = true гарантируют, что он никогда
+            -- не попадёт ни в один SQL-запрос (INSERT / UPDATE / DELETE).
+            if pPlayer:IsAdmin() or pPlayer:IsSuperAdmin() then
+                table.insert(tChars, {
+                    id           = -1,
+                    player_id    = -1,
+                    clone_number = "####",
+                    callsign     = pPlayer.SWExp_RealSteamName or pPlayer:Nick(),
+                    ['rank']     = "ADMIN",
+                    model        = DEFAULT_MODEL,
+                    _virtual     = true,
+                })
+            end
+
+            pPlayer.SWExp_Characters = tChars
 
             -- Открываем меню выбора персонажа
             netstream.Start(pPlayer, 'SWExp::OpenCharSelect', pPlayer.SWExp_Characters)
@@ -90,9 +115,52 @@ function GM:PlayerSpawn(pPlayer)
     end
 end
 
+-- ============================================================
+-- Выдача базового оружия
+-- Вешаем на несколько точек, потому что pPlayer:Spawn() из
+-- sv_chars.lua не всегда триггерит GM:PlayerLoadout.
+-- ============================================================
+
+local function SWExp_GiveDefaultWeapons(pPlayer)
+    if not IsValid(pPlayer) then return end
+    if not pPlayer:Alive() then return end
+
+    -- Базовое оружие для всех игроков (true → без стартового запаса патронов)
+    pPlayer:Give('mvp_perfecthands', true)
+
+    -- Если выбран админский персонаж (rank == "ADMIN") —
+    -- дополнительно выдаём physgun и tool gun.
+    -- Привязка идёт к роли персонажа, а не к группе аккаунта.
+    local char = pPlayer.SWExp_ActiveChar
+    if char and char['rank'] == 'ADMIN' then
+        pPlayer:Give('weapon_physgun', true)
+        pPlayer:Give('gmod_tool', true)
+    end
+
+    pPlayer:SelectWeapon('mvp_perfecthands')
+end
+
 function GM:PlayerLoadout(pPlayer)
+    SWExp_GiveDefaultWeapons(pPlayer)
     return true
 end
+
+-- На случай если PlayerLoadout не сработает после pPlayer:Spawn()
+-- (см. SWExp.Chars:Choose в modules/sv_chars.lua) — выдаём
+-- оружие отложенно на следующий тик после выбора персонажа.
+hook.Add('SWExp::CharacterSelected', 'SWExp::GiveLoadoutOnCharSelect', function(pPlayer, char)
+    timer.Simple(0, function()
+        SWExp_GiveDefaultWeapons(pPlayer)
+    end)
+end)
+
+-- Запасной триггер на обычный респавн (после смерти и т.п.) —
+-- если по какой-то причине GM:PlayerLoadout проглатывается.
+hook.Add('PlayerSpawn', 'SWExp::GiveLoadoutOnSpawn', function(pPlayer)
+    timer.Simple(0, function()
+        SWExp_GiveDefaultWeapons(pPlayer)
+    end)
+end)
 
 function GM:PlayerSelectSpawn(pPlayer)
     local spawns = ents.FindByClass('swexp_spawn')
@@ -117,7 +185,10 @@ end
 function GM:GetFallDamage(pPlayer, speed)
     -- Формула вычисляет урон на основе скорости столкновения с землей (speed).
     -- При падении с небольшой высоты урон будет 0, со средней - снимет часть ХП, с большой - убьет.
+    speed = tonumber(speed) or 0
     local damage = (speed - 526) * 0.25
-    
-    return math.max(0, damage) -- Урон не может быть отрицательным
+
+    -- Защита от эксплойтов: если движок/аддон сообщит аномально большую скорость
+    -- (например teleport/noclip exit с инерцией), урон ограничен сверху 200 HP.
+    return math.Clamp(damage, 0, 200)
 end

@@ -16,9 +16,9 @@ SWExp = SWExp or {}
 SWExp.Armor = SWExp.Armor or {}
 
 -- Базовые скорости
-local BASE_WALK      = 250
-local BASE_RUN       = 400
-local BASE_SLOW_WALK = 150
+local BASE_WALK      = 150
+local BASE_RUN       = 300
+local BASE_SLOW_WALK = 100
 
 -- ============================================================
 -- Применение скорости с учётом брони

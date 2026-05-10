@@ -60,6 +60,7 @@ hook.Add("PostDrawOpaqueRenderables", "SWExp::DrawResearchLabels", function()
         local name  = ent:GetNWString("SWExp_ResName",      "Неизвестный объект")
         local mono  = ent:GetNWString("SWExp_ResMonologue", "...")
         local pts   = ent:GetNWInt("SWExp_ResPoints",       1)
+        local tier  = ent:GetNWInt("SWExp_Tier",            1)
         local cr    = ent:GetNWInt("SWExp_ColorR", 100)
         local cg    = ent:GetNWInt("SWExp_ColorG", 200)
         local cb    = ent:GetNWInt("SWExp_ColorB", 255)
@@ -84,7 +85,7 @@ hook.Add("PostDrawOpaqueRenderables", "SWExp::DrawResearchLabels", function()
             draw.RoundedBox(3, bx + 3, by + 8, 3, boxH - 16,
                 Color(col.r, col.g, col.b, math.Round(255 * fadeAlpha)))
 
-            -- Имя типа объекта (Exo 2 Bold через SWUI.Small)
+            -- Имя типа объекта
             draw.SimpleText(
                 string.upper(name),
                 "SWUI.Small",
@@ -93,11 +94,20 @@ hook.Add("PostDrawOpaqueRenderables", "SWExp::DrawResearchLabels", function()
                 TEXT_ALIGN_LEFT, TEXT_ALIGN_TOP
             )
 
-            -- Очки исследования (справа)
+            -- Тир (правый верхний угол)
+            draw.SimpleText(
+                "ТИР " .. tier,
+                "SWUI.Tiny",
+                bx + boxW - 10, by + 10,
+                Color(col.r, col.g, col.b, math.Round(180 * fadeAlpha)),
+                TEXT_ALIGN_RIGHT, TEXT_ALIGN_TOP
+            )
+
+            -- Очки исследования
             draw.SimpleText(
                 "+" .. pts .. " ОИ",
                 "SWUI.Small",
-                bx + boxW - 10, by + 10,
+                bx + boxW - 10, by + 27,
                 Color(col.r, col.g, col.b, math.Round(200 * fadeAlpha)),
                 TEXT_ALIGN_RIGHT, TEXT_ALIGN_TOP
             )

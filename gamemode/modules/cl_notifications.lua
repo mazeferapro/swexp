@@ -33,8 +33,8 @@ local CFG = {
     LineH        = 18,    -- высота одной строки текста
     PadV         = 14,    -- вертикальный отступ текста от края
     Gap          = 5,
-    MarginRight  = 30,
-    MarginBottom = 30,
+    MarginLeft   = 30,    -- отступ от левого края
+    MarginTop    = 30,    -- отступ от верха экрана
 }
 
 -- ============================================================
@@ -118,7 +118,7 @@ local function AddNote(str, ntype, duration)
         icon      = ico,
         duration  = duration or 5,
         startTime = CurTime(),
-        slideX    = S(CFG.PanelW + 40),
+        slideX    = -S(CFG.PanelW + 40),  -- слайд из-за левого края
     })
 end
 
@@ -162,11 +162,14 @@ hook.Add('HUDPaint', 'SWExp::DrawNotifications', function()
     local pw  = S(CFG.PanelW)
     local gap = S(CFG.Gap)
 
-    local baseX = sw - pw - S(CFG.MarginRight)
+    -- Базовая позиция: левый верхний угол.
+    -- Сдвигаем вниз, если над нами (выше baseY) уже размещены другие HUD'ы.
+    local baseX = S(CFG.MarginLeft)
+    local baseY = S(CFG.MarginTop) + (SWExp_PickupFeedHeight or 0)
     local toRemove = {}
 
-    -- Сначала считаем суммарную высоту снизу вверх
-    local offsetY = S(CFG.MarginBottom)
+    -- Считаем суммарную высоту сверху вниз
+    local offsetY = 0
 
     for i = 1, #Notes do
         local n       = Notes[i]
@@ -189,7 +192,7 @@ hook.Add('HUDPaint', 'SWExp::DrawNotifications', function()
         end
         alpha = math.Clamp(alpha, 0, 1)
 
-        -- Слайд справа easeOutQuart
+        -- Слайд слева easeOutQuart (slideX отрицательный → стремится к 0)
         local sp    = math.Clamp(elapsed / CFG.SlideTime, 0, 1)
         local t     = 1 - sp
         local eased = 1 - t * t * t * t
@@ -197,7 +200,7 @@ hook.Add('HUDPaint', 'SWExp::DrawNotifications', function()
         if math.abs(n.slideX) < 0.5 then n.slideX = 0 end
 
         local x   = baseX + n.slideX
-        local y   = sh - offsetY - ph
+        local y   = baseY + offsetY
         offsetY   = offsetY + ph + gap
 
         local col = n.color
@@ -241,6 +244,9 @@ hook.Add('HUDPaint', 'SWExp::DrawNotifications', function()
 
         surface.SetAlphaMultiplier(1)
     end
+
+    -- Экспортируем итоговую высоту, чтобы другие HUD'ы могли стыковаться ниже
+    SWExp_NotificationsHeight = offsetY > 0 and (offsetY + S(CFG.Gap)) or 0
 
     -- Удаляем устаревшие (в обратном порядке)
     for i = #toRemove, 1, -1 do

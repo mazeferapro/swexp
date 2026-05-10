@@ -7,6 +7,17 @@ if CLIENT then return end
 
 SWExp.Research = SWExp.Research or {}
 
+-- Локальный fallback для rate-limit
+local function RateOk(ply, key, cd)
+    if SWExp and SWExp.Net and SWExp.Net.RateCheck then
+        return SWExp.Net:RateCheck(ply, key, cd)
+    end
+    return IsValid(ply)
+end
+
+-- Максимальное расстояние от игрока до терминала для сдачи (квадрат)
+local DEPOSIT_RANGE_SQR = 250 * 250
+
 -- ============================================================
 -- Net-строки
 -- ============================================================
@@ -132,10 +143,10 @@ function SWExp.Research.Deposit(ply)
     SWExp.Research._bankRP = SWExp.Research._bankRP + amount
 
     if MySQLite then
-        MySQLite.query(
-            "UPDATE swexp_server_progress SET research_points = " ..
-            SWExp.Research._bankRP .. " WHERE id = 1"
-        )
+        MySQLite.query(string.format(
+            "UPDATE swexp_server_progress SET research_points = %d WHERE id = 1",
+            tonumber(SWExp.Research._bankRP) or 0
+        ))
     end
 
     -- Пересчитываем тех. уровень
@@ -144,10 +155,10 @@ function SWExp.Research.Deposit(ply)
         if newLevel ~= SWExp.Research._techLevel then
             SWExp.Research._techLevel = newLevel
             if MySQLite then
-                MySQLite.query(
-                    "UPDATE swexp_server_progress SET tech_level = " ..
-                    newLevel .. " WHERE id = 1"
-                )
+                MySQLite.query(string.format(
+                    "UPDATE swexp_server_progress SET tech_level = %d WHERE id = 1",
+                    tonumber(newLevel) or 1
+                ))
             end
 
             -- Проверяем финал
@@ -216,6 +227,26 @@ end
 
 net.Receive("SWExp::Research_DepositRequest", function(len, ply)
     if not IsValid(ply) then return end
+    if not RateOk(ply, "Research_DepositRequest") then return end
+
+    -- Проверка расстояния до ближайшего research-терминала
+    local plyPos = ply:GetPos()
+    local nearest = nil
+    local bestDistSqr = DEPOSIT_RANGE_SQR
+    for _, term in ipairs(ents.FindByClass("swexp_research_terminal")) do
+        if IsValid(term) then
+            local d = plyPos:DistToSqr(term:GetPos())
+            if d <= bestDistSqr then
+                bestDistSqr = d
+                nearest = term
+            end
+        end
+    end
+    if not IsValid(nearest) then
+        ply:ChatPrint("[ОИ] Подойдите к терминалу исследований, чтобы сдать данные.")
+        return
+    end
+
     SWExp.Research.Deposit(ply)
 end)
 
@@ -224,11 +255,19 @@ end)
 -- ============================================================
 
 hook.Add("PlayerInitialSpawn", "SWExp::Research_SyncOnSpawn", function(ply)
+    -- Задержка нужна, чтобы инвентарь успел загрузиться из БД
     timer.Simple(3, function()
         if IsValid(ply) then
             SWExp.Research.SyncCollectedRP(ply)
         end
     end)
+end)
+
+-- Обновляем NW ОИ при любом изменении инвентаря (если инвентарь поддерживает хук)
+hook.Add("SWExp::InventoryChanged", "SWExp::Research_SyncCollectedRP", function(ply)
+    if IsValid(ply) then
+        SWExp.Research.SyncCollectedRP(ply)
+    end
 end)
 
 print("[SWExp] Модуль исследований (сервер) загружен.")

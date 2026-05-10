@@ -10,6 +10,53 @@ SWExp.Inventory.PlayerInventories = {}
 SWExp.Inventory.PlayerStorages = {}
 SWExp.Inventory.PlayerEquipment = {}
 
+-- Локальный fallback для rate-limit (если core/sv_net_ratelimit не загружен)
+local function RateOk(ply, key, cd)
+    if SWExp and SWExp.Net and SWExp.Net.RateCheck then
+        return SWExp.Net:RateCheck(ply, key, cd)
+    end
+    return IsValid(ply)
+end
+
+-- Вспомогательные функции для classSWEP (может быть строкой ИЛИ таблицей строк)
+local function GiveClassSWEP(pPlayer, classSWEP)
+    if type(classSWEP) == "table" then
+        for _, swep in ipairs(classSWEP) do
+            if not IsValid(pPlayer:GetWeapon(swep)) then
+                pPlayer:Give(swep, true)
+            end
+        end
+    elseif type(classSWEP) == "string" then
+        if not IsValid(pPlayer:GetWeapon(classSWEP)) then
+            pPlayer:Give(classSWEP, true)
+        end
+    end
+end
+
+local function StripClassSWEP(pPlayer, classSWEP)
+    if type(classSWEP) == "table" then
+        for _, swep in ipairs(classSWEP) do
+            pPlayer:StripWeapon(swep)
+        end
+    elseif type(classSWEP) == "string" then
+        pPlayer:StripWeapon(classSWEP)
+    end
+end
+
+-- Криптостойкий генератор уникальных ID предметов.
+-- Коллизии на `os.time()+math.random()` полностью исключаются за счёт
+-- монотонного счётчика SysTime + CRC32 случайного мусора.
+local _uidCounter = 0
+local function GenerateItemUID()
+    _uidCounter = _uidCounter + 1
+    local entropy = tostring(SysTime()) .. "_" .. tostring(math.random(1, 2^31 - 1))
+    return string.format("%d_%d_%s",
+        os.time(),
+        _uidCounter,
+        util.CRC(entropy)
+    )
+end
+
 -- ============================================================================
 -- ИНИЦИАЛИЗАЦИЯ БД
 -- ============================================================================
@@ -48,12 +95,17 @@ end)
 -- ============================================================================
 function SWExp.Inventory:GetCharacterID(pPlayer)
     if not IsValid(pPlayer) then return nil end
-    
+
     -- Обращаемся напрямую к твоей системе из sv_chars.lua
     if pPlayer.SWExp_ActiveChar and pPlayer.SWExp_ActiveChar.id then
-        return tonumber(pPlayer.SWExp_ActiveChar.id)
+        local id = tonumber(pPlayer.SWExp_ActiveChar.id)
+        -- Виртуальный ADMIN-персонаж (id = -1) не имеет записи в БД.
+        -- Возвращаем nil — все вызывающие функции (инвентарь, патроны,
+        -- гранаты, экипировка) увидят nil и прервутся без SQL-запроса.
+        if id == -1 then return nil end
+        return id
     end
-    
+
     return nil
 end
 
@@ -212,8 +264,8 @@ function SWExp.Inventory:AddItem(pPlayer, itemID, amount, targetStorage)
         end
         
         local stackAmount = itemData.stackable and math.min(amount, itemData.maxStack) or 1
-        local uniqueID = tostring(os.time()) .. "_" .. math.random(10000, 99999)
-        
+        local uniqueID = GenerateItemUID()
+
         for x = posX, posX + itemData.width - 1 do
             for y = posY, posY + itemData.height - 1 do
                 storage.grid[x .. "_" .. y] = uniqueID
@@ -232,6 +284,9 @@ function SWExp.Inventory:AddItem(pPlayer, itemID, amount, targetStorage)
         itemID = itemID,
         amount = originalAmount,
     })
+
+    -- Хук для модулей, которым нужно знать об изменении инвентаря (ассемблер, исследования)
+    hook.Run("SWExp::InventoryChanged", pPlayer)
 
     return true
 end
@@ -262,6 +317,10 @@ function SWExp.Inventory:RemoveItem(pPlayer, uniqueID, amount, fromStorage)
     
     self:SyncInventoryToClient(pPlayer)
     self:SaveCharacterInventory(pPlayer, charID)
+
+    -- Хук для модулей, которым нужно знать об изменении инвентаря (ассемблер, исследования)
+    hook.Run("SWExp::InventoryChanged", pPlayer)
+
     return true
 end
 
@@ -302,7 +361,7 @@ function SWExp.Inventory:SplitItem(pPlayer, uniqueID, splitAmount, fromStorage)
     item.amount = item.amount - splitAmount
 
     -- Создаём новый стек
-    local newUID = tostring(os.time()) .. "_" .. math.random(10000, 99999)
+    local newUID = GenerateItemUID()
     for x = posX, posX + (itemData.width or 1) - 1 do
         for y = posY, posY + (itemData.height or 1) - 1 do
             storage.grid[x .. "_" .. y] = newUID
@@ -457,19 +516,19 @@ function SWExp.Inventory:GetDynamicSlotCount(pPlayer, slotType)
     end
     
     -- Слоты, не зависящие от класса брони: всегда открыты полностью
-    local alwaysOpen = { special = true, medical = true }
+    local alwaysOpen = { special = true, medical = true, grenade = true }
     if alwaysOpen[slotType] then
         local cfg = self.Config.EquipmentSlots[slotType]
         return cfg and cfg.total or 1
     end
 
     local slotsMap = {
-        ["light"]    = { primary = 1, secondary = 1, heavy = 0 },
-        ["medium"]   = { primary = 2, secondary = 1, heavy = 0 },
-        ["heavy"]    = { primary = 1, secondary = 1, heavy = 1 },
-        ["engineer"] = { primary = 1, secondary = 1, heavy = 0 },
-        ["medical"]  = { primary = 1, secondary = 1, heavy = 0 },
-        ["none"]     = { primary = 1, secondary = 0, heavy = 0 },
+        ["light"]    = { primary = 2, secondary = 2, heavy = 0 },
+        ["medium"]   = { primary = 2, secondary = 2, heavy = 0 },
+        ["heavy"]    = { primary = 1, secondary = 2, heavy = 1 },
+        ["engineer"] = { primary = 1, secondary = 2, heavy = 0 },
+        ["medical"]  = { primary = 1, secondary = 2, heavy = 0 },
+        ["none"]     = { primary = 0, secondary = 1, heavy = 0 },
     }
 
     local limits = slotsMap[armorClass] or slotsMap["none"]
@@ -511,7 +570,7 @@ function SWExp.Inventory:EquipItem(pPlayer, uniqueID, slotType, slotIndex, fromS
         if curItemData then
             -- Снимаем SWEP брони (classSWEP) или оружия (weaponClass)
             if slotType == "armor" then
-                if curItemData.classSWEP then pPlayer:StripWeapon(curItemData.classSWEP) end
+                if curItemData.classSWEP then StripClassSWEP(pPlayer, curItemData.classSWEP) end
             elseif curItemData.weaponClass then
                 pPlayer:StripWeapon(curItemData.weaponClass)
             end
@@ -564,15 +623,24 @@ function SWExp.Inventory:EquipItem(pPlayer, uniqueID, slotType, slotIndex, fromS
         end
         if itemData.classSWEP then
             -- Give безопасно: если уже есть — не дублирует
-            if not IsValid(pPlayer:GetWeapon(itemData.classSWEP)) then
-                pPlayer:Give(itemData.classSWEP)
-            end
+            -- Поддержка classSWEP как строки и как таблицы строк
+            GiveClassSWEP(pPlayer, itemData.classSWEP)
         end
     elseif itemData.weaponClass then
         -- Оружейный слот: выдаём SWEP если нет
+        -- Второй аргумент true → НЕ выдавать стартовый запас патронов;
+        -- запас управляется модулем ammo (по character_id из БД).
         if not IsValid(pPlayer:GetWeapon(itemData.weaponClass)) then
-            pPlayer:Give(itemData.weaponClass)
+            pPlayer:Give(itemData.weaponClass, true)
         end
+    end
+
+    -- HOOK: пусть модуль ammo (или другие) подгрузит запас патронов / магазин гранаты
+    hook.Run("SWExp::ItemEquipped", pPlayer, slotType, slotIndex, newItemID, newAmount)
+
+    -- Обновляем NWBool маскировки если надели броню
+    if slotType == "armor" then
+        pPlayer:SetNWBool("SWExp_CloakAllowed", itemData.isAvailableCloak == true)
     end
 
     self:SyncInventoryToClient(pPlayer)
@@ -589,7 +657,21 @@ function SWExp.Inventory:UnequipItem(pPlayer, slotType, slotIndex)
     if not equip or not equip[slotType] or not equip[slotType][slotIndex] then return false end
     
     local item = equip[slotType][slotIndex]
-    local addOk = self:AddItem(pPlayer, item.itemID, item.amount)
+
+    -- HOOK: модули могут подменить количество, которое реально вернётся в инвентарь.
+    -- Например, для гранат — сколько осталось в clip SWEP'а на момент снятия.
+    local override = hook.Run("SWExp::ItemUnequipping", pPlayer, slotType, slotIndex, item.itemID)
+    if isnumber(override) and override >= 0 then
+        item.amount = override
+    end
+
+    local addOk
+    if (item.amount or 0) > 0 then
+        addOk = self:AddItem(pPlayer, item.itemID, item.amount)
+    else
+        -- Нечего возвращать (граната израсходована полностью) — просто пропускаем
+        addOk = true
+    end
     if not addOk then
         -- Нет места в инвентаре — дропаем предмет на землю рядом с игроком
         local dropEnt = ents.Create("nextrp_dropped_item")
@@ -613,7 +695,7 @@ function SWExp.Inventory:UnequipItem(pPlayer, slotType, slotIndex)
     if slotType == "armor" then
         -- 1. Снять SWEP самой брони (крюк-кошка и т.д.)
         if itemData and itemData.classSWEP then
-            pPlayer:StripWeapon(itemData.classSWEP)
+            StripClassSWEP(pPlayer, itemData.classSWEP)
         end
 
         -- 2. Снять ВСЕ SWEP из оружейных слотов и вернуть предметы в инвентарь
@@ -626,12 +708,17 @@ function SWExp.Inventory:UnequipItem(pPlayer, slotType, slotIndex)
                     for wSlotIdx, wItem in pairs(currentEquip[wSlotType]) do
                         if wItem and wItem.itemID then
                             local wData = self:GetItemData(wItem.itemID)
+                            -- HOOK: подменить amount остатком (например, гранаты)
+                            local wOverride = hook.Run("SWExp::ItemUnequipping", pPlayer, wSlotType, wSlotIdx, wItem.itemID)
+                            if isnumber(wOverride) and wOverride >= 0 then
+                                wItem.amount = wOverride
+                            end
                             -- Снять SWEP
                             if wData and wData.weaponClass then
                                 pPlayer:StripWeapon(wData.weaponClass)
                             end
                             -- Вернуть предмет в инвентарь; если нет места — дропнуть на землю
-                            local addOk = self:AddItem(pPlayer, wItem.itemID, wItem.amount or 1)
+                            local addOk = ((wItem.amount or 0) > 0) and self:AddItem(pPlayer, wItem.itemID, wItem.amount or 1) or true
                             if not addOk then
                                 local dropEnt = ents.Create("nextrp_dropped_item")
                                 if IsValid(dropEnt) then
@@ -667,11 +754,13 @@ function SWExp.Inventory:UnequipItem(pPlayer, slotType, slotIndex)
         if SWExp.Chars and SWExp.Chars.UpdateModel then
             SWExp.Chars:UpdateModel(pPlayer, defaultModel)
         end
+        -- Сбрасываем право на маскировку при снятии брони
+        pPlayer:SetNWBool("SWExp_CloakAllowed", false)
     elseif itemData and itemData.weaponClass then
         -- Обычный оружейный слот: снять SWEP
         pPlayer:StripWeapon(itemData.weaponClass)
     end
-    
+
     self:SyncInventoryToClient(pPlayer)
     self:SaveCharacterInventory(pPlayer, charID)
     return true
@@ -695,14 +784,18 @@ function SWExp.Inventory:ApplyEquippedArmor(pPlayer)
             pPlayer:SetArmor(itemData.armorReduction * 100)
             if itemData.playerModel then pPlayer:SetModel(itemData.playerModel) end
             if itemData.classSWEP then
-                if not IsValid(pPlayer:GetWeapon(itemData.classSWEP)) then
-                    pPlayer:Give(itemData.classSWEP)
-                end
+                -- Поддержка classSWEP как строки и как таблицы строк
+                GiveClassSWEP(pPlayer, itemData.classSWEP)
             end
             if SWExp.Armor and SWExp.Armor.ApplyArmorSpeed then
                 SWExp.Armor.ApplyArmorSpeed(pPlayer)
             end
+            -- Синхронизируем право на маскировку из надетой брони
+            pPlayer:SetNWBool("SWExp_CloakAllowed", itemData.isAvailableCloak == true)
         end
+    else
+        -- Брони нет — маскировка недоступна
+        pPlayer:SetNWBool("SWExp_CloakAllowed", false)
     end
 
     -- Восстановить оружие из всех оружейных слотов
@@ -713,7 +806,7 @@ function SWExp.Inventory:ApplyEquippedArmor(pPlayer)
                 local itemData = self:GetItemData(slotItem.itemID)
                 if itemData and itemData.weaponClass then
                     if not IsValid(pPlayer:GetWeapon(itemData.weaponClass)) then
-                        pPlayer:Give(itemData.weaponClass)
+                        pPlayer:Give(itemData.weaponClass, true)
                     end
                 end
             end
@@ -756,9 +849,29 @@ function SWExp.Inventory:DropItem(pPlayer, uniqueID, fromStorage)
     
     local ent = ents.Create("nextrp_dropped_item") -- Если у тебя свое энтити, замени класс
     if not IsValid(ent) then return false end
-    
-    local tr = pPlayer:GetEyeTrace()
-    ent:SetPos(tr.HitPos + tr.HitNormal * 10)
+
+    -- Ограничиваем дистанцию дропа: предмет падает не дальше MaxDropDistance от игрока
+    local MaxDropDistance = SWExp.Inventory.Config.PickupRadius or 100
+    local tr       = pPlayer:GetEyeTrace()
+    local eyePos   = pPlayer:EyePos()
+    local dropPos
+
+    if tr.Hit and eyePos:Distance(tr.HitPos) <= MaxDropDistance then
+        dropPos = tr.HitPos + tr.HitNormal * 10
+    else
+        -- Цель слишком далеко — кладём прямо перед игроком на земле
+        local forward = pPlayer:GetForward()
+        local nearPos = eyePos + forward * math.min(MaxDropDistance, 60)
+        local groundTr = util.TraceLine({
+            start  = nearPos,
+            endpos = nearPos + Vector(0, 0, -200),
+            filter = pPlayer,
+            mask   = MASK_SOLID_BRUSHONLY,
+        })
+        dropPos = (groundTr.Hit and groundTr.HitPos or nearPos) + Vector(0, 0, 5)
+    end
+
+    ent:SetPos(dropPos)
     ent:Spawn()
     if ent.SetItemData then ent:SetItemData(item.itemID, item.amount) end
     
@@ -796,6 +909,28 @@ function SWExp.Inventory:DropAllItems(pPlayer, deathPos)
         end
     end
 
+    -- Добавляем боезапас игрока в сумку смерти
+    local ammoBank = SWExp.Ammo and SWExp.Ammo.PlayerData
+                     and SWExp.Ammo.PlayerData[steamID]
+                     and SWExp.Ammo.PlayerData[steamID][charID]
+    if ammoBank then
+        for ammoType, amount in pairs(ammoBank) do
+            if (amount or 0) > 0 then
+                local key = "__ammo_" .. ammoType
+                itemsCopy[key] = { itemID = key, ammoType = ammoType, amount = amount, isAmmo = true }
+                hasItems = true
+            end
+        end
+        -- Обнуляем боезапас в памяти и в БД
+        SWExp.Ammo.PlayerData[steamID][charID] = {}
+        if MySQLite then
+            MySQLite.query(string.format(
+                "DELETE FROM swexp_ammo WHERE character_id = %d",
+                charID
+            ))
+        end
+    end
+
     if not hasItems then return end
 
     -- Снимаем все SWEP (оружия и броня) прежде чем сбрасывать данные
@@ -806,7 +941,7 @@ function SWExp.Inventory:DropAllItems(pPlayer, deathPos)
                     local itemData = self:GetItemData(item.itemID)
                     if itemData then
                         if slotType == "armor" then
-                            if itemData.classSWEP then pPlayer:StripWeapon(itemData.classSWEP) end
+                            if itemData.classSWEP then StripClassSWEP(pPlayer, itemData.classSWEP) end
                         elseif itemData.weaponClass then
                             pPlayer:StripWeapon(itemData.weaponClass)
                         end
@@ -862,33 +997,51 @@ end
 -- Загрузка инвентаря при выборе персонажа
 hook.Add("SWExp::CharacterSelected", "SWExp::Inventory_LoadOnSelect", function(pPlayer, charData)
     if not IsValid(pPlayer) then return end
-    
+
     SWExp.Inventory:LoadCharacterInventory(pPlayer, function(success)
         if success and IsValid(pPlayer) then
             -- Как только инвентарь загрузился из БД, возвращаем броню на место
             SWExp.Inventory:ApplyEquippedArmor(pPlayer)
+            -- Синхронизируем NW-переменные для меток ассемблера и терминала исследований.
+            -- Вызываем через небольшую паузу, чтобы все модули успели подписаться на хук.
+            timer.Simple(0.5, function()
+                if IsValid(pPlayer) then
+                    hook.Run("SWExp::InventoryChanged", pPlayer)
+                end
+            end)
         end
     end)
 end)
 
 netstream.Hook("SWExp::InventoryMoveItem", function(pPlayer, data)
+    if not RateOk(pPlayer, "InventoryMoveItem") then return end
+    if not istable(data) then return end
     SWExp.Inventory:MoveItem(pPlayer, data.uniqueID, data.newX, data.newY, data.fromStorage, data.toStorage, data.rotated)
 end)
 
 netstream.Hook("SWExp::InventoryDropItem", function(pPlayer, data)
+    if not RateOk(pPlayer, "InventoryDropItem") then return end
+    if not istable(data) then return end
     SWExp.Inventory:DropItem(pPlayer, data.uniqueID, data.fromStorage)
 end)
 
 netstream.Hook("SWExp::InventoryEquipItem", function(pPlayer, data)
+    if not RateOk(pPlayer, "InventoryEquipItem") then return end
+    if not istable(data) then return end
     SWExp.Inventory:EquipItem(pPlayer, data.uniqueID, data.slotType, data.slotIndex, data.fromStorage)
 end)
 
 netstream.Hook("SWExp::InventoryUnequipItem", function(pPlayer, data)
+    if not RateOk(pPlayer, "InventoryUnequipItem") then return end
+    if not istable(data) then return end
     SWExp.Inventory:UnequipItem(pPlayer, data.slotType, data.slotIndex)
 end)
 
 -- Экипировка предмета прямо из сумки смерти (без прохода через инвентарь)
 netstream.Hook("SWExp::InventoryEquipFromBag", function(pPlayer, data)
+    if not RateOk(pPlayer, "InventoryEquipFromBag") then return end
+    if not istable(data) then return end
+
     local ent = Entity(data.entIndex)
     if not IsValid(ent) or ent:GetPos():Distance(pPlayer:GetPos()) > SWExp.Inventory.Config.PickupRadius then return end
 
@@ -896,13 +1049,18 @@ netstream.Hook("SWExp::InventoryEquipFromBag", function(pPlayer, data)
     local item = items[data.uniqueID]
     if not item then return end
 
-    -- Кладём предмет во временный инвентарь игрока
-    local ok = SWExp.Inventory:AddItem(pPlayer, item.itemID, item.amount)
-    if not ok then return end
-
-    -- Удаляем из сумки
+    -- АТОМАРНО: удаляем предмет из сумки ПЕРВЫМ, чтобы исключить race condition / дюп.
+    -- Если AddItem упадёт — вернём предмет в сумку.
     items[data.uniqueID] = nil
     if ent.SetItems then ent:SetItems(items) end
+
+    local ok = SWExp.Inventory:AddItem(pPlayer, item.itemID, item.amount)
+    if not ok then
+        -- Откат: возвращаем предмет в сумку
+        items[data.uniqueID] = item
+        if ent.SetItems then ent:SetItems(items) end
+        return
+    end
 
     -- Экипируем: ищем uniqueID нового предмета в инвентаре
     local charID  = SWExp.Inventory:GetCharacterID(pPlayer)
@@ -934,21 +1092,26 @@ netstream.Hook("SWExp::InventoryEquipFromBag", function(pPlayer, data)
 end)
 
 netstream.Hook("SWExp::InventoryUseItem", function(pPlayer, data)
+    if not RateOk(pPlayer, "InventoryUseItem") then return end
+    if not istable(data) then return end
     local charID = SWExp.Inventory:GetCharacterID(pPlayer)
     if not charID then return end
     local steamID = pPlayer:SteamID64()
     local storage = data.fromStorage and (SWExp.Inventory.PlayerStorages[steamID] and SWExp.Inventory.PlayerStorages[steamID][charID]) or (SWExp.Inventory.PlayerInventories[steamID] and SWExp.Inventory.PlayerInventories[steamID][charID])
     if not storage or not storage.items[data.uniqueID] then return end
-    
+
     local item = storage.items[data.uniqueID]
     local itemData = SWExp.Inventory:GetItemData(item.itemID)
-    
+
     if itemData and itemData.onUse then
         if itemData.onUse(pPlayer, item) then SWExp.Inventory:RemoveItem(pPlayer, data.uniqueID, 1, data.fromStorage) end
     end
 end)
 
 netstream.Hook("SWExp::InventoryTakeFromBag", function(pPlayer, data)
+    if not RateOk(pPlayer, "InventoryTakeFromBag") then return end
+    if not istable(data) then return end
+
     local ent = Entity(data.entIndex)
     if not IsValid(ent) or ent:GetPos():Distance(pPlayer:GetPos()) > SWExp.Inventory.Config.PickupRadius then return end
 
@@ -956,9 +1119,31 @@ netstream.Hook("SWExp::InventoryTakeFromBag", function(pPlayer, data)
     local item = items[data.uniqueID]
     if not item then return end
 
+    -- АТОМАРНО: удаляем из сумки ДО добавления игроку. Если не удастся — откатываем.
+    items[data.uniqueID] = nil
+    if ent.SetItems then ent:SetItems(items) end
+
+    -- Обработка боезапаса из сумки смерти
+    if item.isAmmo then
+        if SWExp.Ammo and SWExp.Ammo.Give and SWExp.Ammo.Save then
+            SWExp.Ammo:Give(pPlayer, item.ammoType, item.amount)
+            SWExp.Ammo:Save(pPlayer)
+            netstream.Start(pPlayer, "SWExp::UpdateDeathBag", {entIndex = data.entIndex, items = items})
+            if table.Count(items) == 0 then
+                timer.Simple(0.5, function()
+                    if IsValid(ent) then ent:Remove() end
+                end)
+            end
+        else
+            -- Откат: SWExp.Ammo недоступен
+            items[data.uniqueID] = item
+            if ent.SetItems then ent:SetItems(items) end
+            netstream.Start(pPlayer, "SWExp::UpdateDeathBag", {entIndex = data.entIndex, items = items})
+        end
+        return
+    end
+
     if SWExp.Inventory:AddItem(pPlayer, item.itemID, item.amount) then
-        items[data.uniqueID] = nil
-        if ent.SetItems then ent:SetItems(items) end
 
         -- Если клиент указал позицию и поворот — применяем через MoveItem
         local rotated = data.rotated or false
@@ -993,6 +1178,11 @@ netstream.Hook("SWExp::InventoryTakeFromBag", function(pPlayer, data)
                 if IsValid(ent) then ent:Remove() end
             end)
         end
+    else
+        -- Откат: возвращаем предмет в сумку
+        items[data.uniqueID] = item
+        if ent.SetItems then ent:SetItems(items) end
+        netstream.Start(pPlayer, "SWExp::UpdateDeathBag", {entIndex = data.entIndex, items = items})
     end
 end)
 
@@ -1006,16 +1196,21 @@ hook.Add("PlayerSpawn", "SWExp::Inventory_ApplyArmorOnSpawn", function(pPlayer)
 end)
 
 netstream.Hook("SWExp::RequestInventoryOpen", function(pPlayer)
+    if not RateOk(pPlayer, "InventoryOpen") then return end
     SWExp.Inventory:SyncInventoryToClient(pPlayer)
 end)
 
 -- Разделение стека: клиент просит отколоть splitAmount единиц в отдельный стек
 netstream.Hook("SWExp::InventorySplitItem", function(pPlayer, data)
+    if not RateOk(pPlayer, "InventorySplitItem") then return end
+    if not istable(data) then return end
     SWExp.Inventory:SplitItem(pPlayer, data.uniqueID, data.amount, data.fromStorage)
 end)
 
 -- Объединение стеков: клиент перетащил один стек поверх другого того же предмета
 netstream.Hook("SWExp::InventoryMergeItems", function(pPlayer, data)
+    if not RateOk(pPlayer, "InventoryMergeItems") then return end
+    if not istable(data) then return end
     SWExp.Inventory:MergeItems(pPlayer, data.sourceUID, data.targetUID, data.fromStorage, data.toStorage)
 end)
 
@@ -1081,26 +1276,31 @@ concommand.Add("swexp_listitems", function(ply, cmd, args)
     end
 end)
 
--- КОСТЫЛЬ ДЛЯ ТЕСТИРОВАНИЯ БЕЗ СИСТЕМЫ ПЕРСОНАЖЕЙ
-concommand.Add("swexp_test_setchar", function(ply)
-    if IsValid(ply) and ply:IsSuperAdmin() then
-        ply:SetNW2Int("SWExp_CharID", 1) -- Имитируем, что мы играем за персонажа с ID 1
-        SWExp.Inventory:LoadCharacterInventory(ply) -- Загружаем его инвентарь из базы
-        ply:ChatPrint("[ТЕСТ] Персонаж №1 инициализирован! Теперь можно выдавать предметы.")
-    end
-end)
+-- Тестовая команда swexp_test_setchar удалена из продакшна
+-- (использовалась на этапе разработки для инициализации инвентаря без системы персонажей)
 
-concommand.Add("swexp_reset_inv_db", function(ply)
+-- ОПАСНО: удаляет все таблицы инвентаря. Требует явного подтверждения CONFIRM.
+concommand.Add("swexp_reset_inv_db", function(ply, cmd, args)
     if IsValid(ply) and not ply:IsSuperAdmin() then return end
+
+    local confirm = args[1]
+    if confirm ~= "CONFIRM" then
+        local msg = "[SWExp] ОПАСНО! Эта команда удалит ВСЕ таблицы инвентаря. " ..
+                    "Для выполнения: swexp_reset_inv_db CONFIRM"
+        if IsValid(ply) then ply:PrintMessage(HUD_PRINTCONSOLE, msg) else print(msg) end
+        return
+    end
 
     MySQLite.query("DROP TABLE IF EXISTS swexp_inventory;")
     MySQLite.query("DROP TABLE IF EXISTS swexp_storage;")
     MySQLite.query("DROP TABLE IF EXISTS swexp_equipment;")
 
+    local who = IsValid(ply) and ply:Nick() or "CONSOLE"
+    local logMsg = string.format("[SWExp] %s выполнил reset_inv_db. Требуется рестарт сервера.", who)
     if IsValid(ply) then
         ply:ChatPrint("[SWExp] Таблицы инвентаря удалены! Сделай рестарт сервера.")
     end
-    print("[SWExp] Таблицы инвентаря сброшены. Сделай рестарт сервера (или changelevel).")
+    print(logMsg)
 end)
 
 -- ============================================================================
@@ -1176,6 +1376,7 @@ end
 
 -- Хотки: использование первой доступной аптечки из медицинского слота
 netstream.Hook("SWExp::UseMedkitHotkey", function(pPlayer)
+    if not RateOk(pPlayer, "UseMedkitHotkey") then return end
     if not IsValid(pPlayer) or not pPlayer:Alive() then return end
 
     -- Антиспам: нельзя применить аптечку если хил уже идёт

@@ -6,12 +6,23 @@ SWExp = SWExp or {}
 SWExp.CarDealer = SWExp.CarDealer or {}
 SWExp.CarDealer.VehiclePool = SWExp.CarDealer.VehiclePool or {}
 
+-- Локальный fallback rate-limit (если core-модуль не загрузился)
+local function RateOk(ply, key, cd)
+    if SWExp and SWExp.Net and SWExp.Net.RateCheck then
+        return SWExp.Net:RateCheck(ply, key, cd)
+    end
+    return IsValid(ply)
+end
+
 -- BUG-02 FIX: таблица брошенной техники [entity] = class
 -- Заполняется при отключении игрока, очищается при возврате техники
 SWExp.CarDealer.OrphanedVehicles = SWExp.CarDealer.OrphanedVehicles or {}
 
 util.AddNetworkString("SWExp::CarDealer::SyncPool")
 util.AddNetworkString("SWExp::CarDealer::RequestSync")
+util.AddNetworkString("SWExp::CarDealer::ReqPlatforms")   -- клиент → сервер: запросить список платформ
+util.AddNetworkString("SWExp::CarDealer::PlatformData")   -- сервер → клиент: позиции + занятость платформ
+util.AddNetworkString("SWExp::CarDealer::SpawnOnPlatform") -- клиент → сервер: спавн на конкретной платформе
 
 -- ИНИЦИАЛИЗАЦИЯ БАЗЫ ДАННЫХ ПУЛА
 hook.Add("DatabaseInitialized", "SWExp::CarDealer_DB_Init", function()
@@ -58,7 +69,12 @@ function SWExp.CarDealer:SyncPoolToClients(ply)
 end
 
 net.Receive("SWExp::CarDealer::RequestSync", function(len, ply)
-    if IsValid(ply) then SWExp.CarDealer:SyncPoolToClients(ply) end
+    if not IsValid(ply) then return end
+    SWExp.CarDealer:SyncPoolToClients(ply)
+    -- Синхронизируем банк, если игрок ещё не открывал ассемблер
+    net.Start("SWExp::Assembler_Update")
+        net.WriteInt(SWExp.Assembler and SWExp.Assembler._bank or 0, 32)
+    net.Send(ply)
 end)
 
 -- BUG-02 FIX: при отключении игрока техника НЕ удаляется —
@@ -71,18 +87,22 @@ hook.Add("PlayerDisconnected", "SWExp::CarDealer_OrphanVeh", function(ply)
     end
     ply.SpawnedVeh = nil
     ply.SpawnedVehClass = nil
+    -- Очистка локального кулдауна (на случай если core-rate-limit не применился)
+    ply._swexpCreateCarCooldown = nil
 end)
 
 -- ПРОИЗВОДСТВО ТЕХНИКИ
 netstream.Hook('SWExp::CreateCar', function(pPlayer, sClass)
+    if not IsValid(pPlayer) then return end
+    if type(sClass) ~= "string" or #sClass > 128 then return end
     -- BUG-04 FIX: защита от спама кнопки / повторных запросов за короткое время
-    if pPlayer._swexpCreateCarCooldown and pPlayer._swexpCreateCarCooldown > CurTime() then
+    if not RateOk(pPlayer, "CreateCar") then
         pPlayer:ChatPrint('[SWExp] Ошибка: Подождите перед следующим заказом!')
         return
     end
-    pPlayer._swexpCreateCarCooldown = CurTime() + 2
 
     local settings = SWExp.CarDealer:GetVehicleSettings(sClass)
+    if not settings then return end
     
     local plyRankID = pPlayer:GetNWString("swexp_rank", "TRP")
     local plyRankData = SWExp.Ranks:Get(plyRankID)
@@ -113,7 +133,10 @@ netstream.Hook('SWExp::CreateCar', function(pPlayer, sClass)
     if SWExp.Assembler then
         SWExp.Assembler._bank = currentMaterials - settings.materialCost
         if MySQLite then
-            MySQLite.query("UPDATE `swexp_assembler_bank` SET `materials`=" .. SWExp.Assembler._bank .. " WHERE `id`=1;")
+            MySQLite.query(string.format(
+                "UPDATE `swexp_assembler_bank` SET `materials`=%d WHERE `id`=1;",
+                tonumber(SWExp.Assembler._bank) or 0
+            ))
         end
         net.Start("SWExp::Assembler_Update")
             net.WriteInt(SWExp.Assembler._bank, 32)
@@ -126,6 +149,9 @@ end)
 
 -- ВЫЗОВ ТЕХНИКИ ИЗ ГАРАЖА
 netstream.Hook('NextRP::SpawnCar', function(pPlayer, eSpawner, sClass, iSkin, tBodygroups)
+    if not IsValid(pPlayer) then return end
+    if type(sClass) ~= "string" or #sClass > 128 then return end
+    if not RateOk(pPlayer, "SpawnCar") then return end
     -- BUG-03 FIX: проверяем валидность терминала до любых обращений к eSpawner
     if not IsValid(eSpawner) then
         pPlayer:ChatPrint('[SWExp] Ошибка: Неверный терминал!')
@@ -190,6 +216,8 @@ end)
 -- ВОЗВРАТ ТЕХНИКИ
 -- BUG-02 FIX: любой игрок может вернуть "брошенную" технику (после отключения хозяина)
 netstream.Hook('NextRP::ReturnCar', function(pPlayer)
+    if not IsValid(pPlayer) then return end
+    if not RateOk(pPlayer, "ReturnCar") then return end
     local veh = nil
     local sClass = nil
     local isOrphaned = false
@@ -263,6 +291,150 @@ netstream.Hook('NextRP::ReturnCar', function(pPlayer)
     veh:Remove()
 end)
 
--- ПРИМЕЧАНИЕ: обработчики SWExp::AddPlatform, SWExp::RemovePlatform,
--- SWExp::AddVehicle, SWExp::RemoveVehicle уже реализованы внутри энтити
--- swexp_carspawner/init.lua — дублировать их здесь не нужно.
+-- ============================================================================
+-- ПЛАТФОРМЫ: вспомогательная функция проверки свободности
+-- ============================================================================
+
+local function IsPlatformFree(platform)
+    if not IsValid(platform) then return false end
+    local tr = util.TraceLine({
+        start      = platform:GetPos(),
+        endpos     = platform:GetPos() + Vector(0, 0, 1000),
+        filter     = platform,
+        ignoreworld = false,
+    })
+    -- Платформа свободна, если луч не попал ни в какую entity
+    if tr.Hit and IsValid(tr.Entity) then return false end
+    return true
+end
+
+-- ============================================================================
+-- ЗАПРОС СПИСКА ПЛАТФОРМ (клиент → сервер)
+-- Клиент передаёт терминал + класс техники; сервер возвращает JSON с данными
+-- ============================================================================
+
+net.Receive("SWExp::CarDealer::ReqPlatforms", function(len, ply)
+    if not IsValid(ply) then return end
+
+    local spawner = net.ReadEntity()
+    local sClass  = net.ReadString()
+
+    if not IsValid(spawner) then
+        ply:ChatPrint("[SWExp] Ошибка: Терминал недоступен.")
+        return
+    end
+
+    if not spawner.Platforms or table.Count(spawner.Platforms) == 0 then
+        ply:ChatPrint("[SWExp] Ошибка: К терминалу не привязано ни одной платформы.")
+        return
+    end
+
+    -- Строим список платформ в виде простых таблиц (JSON не умеет Vector/Angle)
+    local platformData = {}
+    local idx = 0
+    for _, platform in pairs(spawner.Platforms) do
+        if IsValid(platform) then
+            idx = idx + 1
+            local pos = platform:GetPos()
+            local ang = platform:GetAngles()
+            table.insert(platformData, {
+                index    = idx,
+                pos      = { x = pos.x, y = pos.y, z = pos.z },
+                ang      = { p = ang.p, y = ang.y, r = ang.r },
+                occupied = not IsPlatformFree(platform),
+            })
+        end
+    end
+
+    local json = util.TableToJSON(platformData)
+
+    net.Start("SWExp::CarDealer::PlatformData")
+        net.WriteString(sClass)
+        net.WriteString(json)
+    net.Send(ply)
+end)
+
+-- ============================================================================
+-- СПАВН НА КОНКРЕТНОЙ ПЛАТФОРМЕ (клиент → сервер)
+-- ============================================================================
+
+net.Receive("SWExp::CarDealer::SpawnOnPlatform", function(len, ply)
+    if not IsValid(ply) then return end
+    if not RateOk(ply, "SpawnCar") then return end
+
+    local spawner   = net.ReadEntity()
+    local sClass    = net.ReadString()
+    local platIndex = net.ReadUInt(8)
+
+    if not IsValid(spawner) then
+        ply:ChatPrint("[SWExp] Ошибка: Терминал недоступен.")
+        return
+    end
+
+    if IsValid(ply.SpawnedVeh) then
+        ply:ChatPrint("[SWExp] Ошибка: Вы уже используете технику!")
+        return
+    end
+
+    local settings = SWExp.CarDealer:GetVehicleSettings(sClass)
+    if not settings then
+        ply:ChatPrint("[SWExp] Ошибка: Неизвестный класс техники.")
+        return
+    end
+
+    -- Проверка звания
+    local plyRankID  = ply:GetNWString("swexp_rank", "TRP")
+    local plyRankData = SWExp.Ranks:Get(plyRankID)
+    local plyOrder   = plyRankData and plyRankData.sortOrder or 0
+
+    local reqRankData = SWExp.Ranks:Get(settings.spawnRank or "TRP")
+    local reqOrder    = reqRankData and reqRankData.sortOrder or 1
+
+    if plyOrder < reqOrder then
+        ply:ChatPrint("[SWExp] Ошибка: У вас нет допуска к этой технике!")
+        return
+    end
+
+    -- Проверка пула
+    if SWExp.CarDealer:GetVehicleCount(sClass) <= 0 then
+        ply:ChatPrint("[SWExp] Ошибка: Этой техники нет в гараже!")
+        return
+    end
+
+    -- Находим платформу по индексу
+    local platform = nil
+    local idx = 0
+    for _, p in pairs(spawner.Platforms) do
+        if IsValid(p) then
+            idx = idx + 1
+            if idx == platIndex then platform = p; break end
+        end
+    end
+
+    if not IsValid(platform) then
+        ply:ChatPrint("[SWExp] Ошибка: Платформа не найдена.")
+        return
+    end
+
+    if not IsPlatformFree(platform) then
+        ply:ChatPrint("[SWExp] Ошибка: Выбранная платформа занята!")
+        return
+    end
+
+    -- Спавним технику
+    local Veh = ents.Create(sClass)
+    if not IsValid(Veh) then
+        ply:ChatPrint("[SWExp] Ошибка: Не удалось создать технику.")
+        return
+    end
+
+    SWExp.CarDealer:UpdatePool(sClass, -1)
+
+    Veh:SetPos(platform:GetPos() + Vector(0, 0, 100))
+    Veh:SetAngles(platform:GetAngles())
+    Veh:Spawn()
+
+    ply.SpawnedVeh      = Veh
+    ply.SpawnedVehClass = sClass
+    ply:ChatPrint("[SWExp] Успех: Техника выдана из гаража!")
+end)

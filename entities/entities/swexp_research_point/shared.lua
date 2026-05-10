@@ -8,7 +8,7 @@ ENT.Base        = "base_gmodentity"
 ENT.PrintName   = "Объект исследования"
 ENT.Author      = "SWExp"
 ENT.Category    = "SWEXP | Основное"
-ENT.Spawnable   = true
+ENT.Spawnable   = false
 ENT.AdminOnly   = true
 
 -- NW-переменные (устанавливаются сервером):

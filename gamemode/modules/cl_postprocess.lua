@@ -82,14 +82,31 @@ local function DisableColorMod()
 end
 
 -- ============================================================
--- Автовключение при входе на сервер
+-- Автоприменение настройки при входе на сервер
+-- Уважаем сохранённое значение convar swexp_colormod (FCVAR_ARCHIVE),
+-- а не насильно включаем эффекты при каждом заходе.
 -- ============================================================
 
-hook.Add('InitPostEntity', 'SWExp::AutoEnablePostProcess', function()
-    timer.Simple(1, function()
+local function ApplyColorMod(bEnabled)
+    if bEnabled then
         EnableGShaderLib()
         EnableBloom()
         EnableColorMod()
-        RunConsoleCommand('swexp_colormod', '1')
+    else
+        DisableBloom()
+        DisableColorMod()
+        DisableGShaderLib()
+    end
+end
+
+hook.Add('InitPostEntity', 'SWExp::AutoEnablePostProcess', function()
+    timer.Simple(1, function()
+        ApplyColorMod(cv_colormod:GetBool())
     end)
 end)
+
+-- При смене значения convar (через F4-меню или из консоли) сразу
+-- применяем новое состояние, не дожидаясь следующего захода.
+cvars.AddChangeCallback('swexp_colormod', function(_, _, sNew)
+    ApplyColorMod(tobool(sNew))
+end, 'SWExp::ColorModToggle')

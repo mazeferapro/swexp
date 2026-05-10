@@ -39,6 +39,9 @@ function SWExp.Chars:UpdateModel(pPlayer, newModel)
     char.model = newModel
     pPlayer:SetNWString('swexp_model', newModel)
 
+    -- Виртуальный ADMIN-персонаж (id = -1) не хранится в БД — пропускаем запрос
+    if tonumber(char.id) == -1 then return end
+
     -- Обновляем в БД
     MySQLite.query(string.format(
         "UPDATE `swexp_characters` SET model = %s WHERE id = %s AND player_id = %s;",
@@ -68,15 +71,18 @@ function SWExp.Chars:Load(pPlayer, cb)
                 end
             end
 
-            -- Внедряем виртуального персонажа для администрации
+            -- Виртуальный ADMIN-персонаж добавляется ТОЛЬКО в локальный список
+            -- для отображения в меню выбора. Он никогда не записывается в БД
+            -- (id = -1 — признак виртуального персонажа; все DB-операции его игнорируют).
             if pPlayer:IsAdmin() or pPlayer:IsSuperAdmin() then
                 table.insert(tRows, {
-                    id           = -1, -- Системный ID
-                    player_id    = playerID,
+                    id           = -1,
+                    player_id    = -1, -- не реальный player_id — защита от случайной записи
                     clone_number = "####",
                     callsign     = pPlayer.SWExp_RealSteamName or pPlayer:Nick(),
                     ['rank']     = "ADMIN",
                     model        = DEFAULT_MODEL,
+                    _virtual     = true, -- маркер: этот объект существует только в памяти
                 })
             end
 
@@ -247,6 +253,16 @@ function SWExp.Chars:Choose(pPlayer, nCharID, cb)
         return
     end
 
+    -- Виртуальный ADMIN-персонаж (id = -1) разрешён только реальным админам.
+    -- Выбор этого персонажа не порождает никаких запросов к БД — ни сейчас,
+    -- ни через UpdateModel, ни через другие функции (все они проверяют id == -1).
+    if tonumber(char.id) == -1 then
+        if not (pPlayer:IsAdmin() or pPlayer:IsSuperAdmin()) then
+            if cb then cb(false, 'Нет доступа') end
+            return
+        end
+    end
+
     pPlayer.SWExp_ActiveChar = char
 
     local mdl = char.model or DEFAULT_MODEL -- Теперь подтягиваем сохраненную
@@ -350,26 +366,61 @@ function meta:Nick() if self.SWExp_DisplayName then return self.SWExp_DisplayNam
 function meta:Name() if self.SWExp_DisplayName then return self.SWExp_DisplayName end return oldName(self) end
 function meta:GetName() if self.SWExp_DisplayName then return self.SWExp_DisplayName end return oldGetName(self) end
  
+-- Радиус слышимости обычного RP-чата (юниты Source).
+-- Должен совпадать с RP_PROXIMITY в sv_chat_commands.lua.
+local SWEXP_CHAT_PROXIMITY = 700
+
 hook.Add('PlayerSay', 'SWExp::ChatName', function(ply, text, teamChat)
-    if not IsValid(ply) or not ply.SWExp_DisplayName then return end
+    MsgC(Color(255, 200, 0), '[SWExp][ChatName] ', color_white,
+        string.format('hook fired. ply=%s display=%s text=%q',
+            IsValid(ply) and ply:Nick() or 'nil',
+            tostring(ply and ply.SWExp_DisplayName),
+            tostring(text)),
+        '\n')
+
+    if not IsValid(ply) or not ply.SWExp_DisplayName then
+        MsgC(Color(255, 200, 0), '[SWExp][ChatName] ', color_white,
+            '  -> no SWExp_DisplayName, returning nil\n')
+        return
+    end
+
     local msg = teamChat and '(TEAM) ' or ''
     msg = msg .. ply.SWExp_DisplayName .. ': ' .. text
+
+    local recipientCount = 0
     if teamChat then
         for _, p in ipairs(player.GetAll()) do
-            if IsValid(p) and p:Team() == ply:Team() then p:ChatPrint(msg) end
+            if IsValid(p) and p:Team() == ply:Team() then
+                p:ChatPrint(msg)
+                recipientCount = recipientCount + 1
+            end
         end
     else
-        for _, p in ipairs(player.GetAll()) do if IsValid(p) then p:ChatPrint(msg) end end
+        local talkerPos = ply:GetPos()
+        local maxSqr    = SWEXP_CHAT_PROXIMITY * SWEXP_CHAT_PROXIMITY
+        for _, p in ipairs(player.GetAll()) do
+            if IsValid(p) then
+                if p == ply or p:GetPos():DistToSqr(talkerPos) <= maxSqr then
+                    p:ChatPrint(msg)
+                    recipientCount = recipientCount + 1
+                end
+            end
+        end
     end
+
+    MsgC(Color(255, 200, 0), '[SWExp][ChatName] ', color_white,
+        string.format('  -> sent ChatPrint to %d players, returning ""\n',
+            recipientCount))
+
     return ''
 end)
- 
+
 hook.Add('PlayerInitialSpawn', 'SWExp::SyncDisplayName', function(ply)
     timer.Simple(1, function()
         if IsValid(ply) and ply.SWExp_DisplayName then ply:SetNWString('SWExp_Nick', ply.SWExp_DisplayName) end
     end)
 end)
- 
+
 hook.Add('SWExp::CharacterSelected', 'SWExp::UpdateDisplayNameNW', function(ply, char)
     if IsValid(ply) and ply.SWExp_DisplayName then ply:SetNWString('SWExp_Nick', ply.SWExp_DisplayName) end
 end)

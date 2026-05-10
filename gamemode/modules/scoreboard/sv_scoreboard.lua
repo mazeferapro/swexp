@@ -200,9 +200,12 @@ netstream.Hook('SWExp::Scoreboard_EditNumber', function(ply, data)
     UpdatePlayerDisplayName(target)
 
     if target.SWExp_ActiveChar then
-        MySQLite.query(string.format("UPDATE `swexp_characters` SET clone_number = %s WHERE id = %s AND player_id = %s;",
-            MySQLite.SQLStr(cloneNumber), MySQLite.SQLStr(target.SWExp_ActiveChar.id), MySQLite.SQLStr(target.SWExp_ID)))
         target.SWExp_ActiveChar.clone_number = cloneNumber
+        -- Виртуальный ADMIN-персонаж (id = -1) не хранится в БД — пропускаем
+        if tonumber(target.SWExp_ActiveChar.id) ~= -1 then
+            MySQLite.query(string.format("UPDATE `swexp_characters` SET clone_number = %s WHERE id = %s AND player_id = %s;",
+                MySQLite.SQLStr(cloneNumber), MySQLite.SQLStr(target.SWExp_ActiveChar.id), MySQLite.SQLStr(target.SWExp_ID)))
+        end
     end
 
     ply:ChatPrint(string.format('[SWExp] Номер игрока %s изменен на %s', target:Nick(), cloneNumber))
@@ -224,9 +227,12 @@ netstream.Hook('SWExp::Scoreboard_EditCallsign', function(ply, data)
     UpdatePlayerDisplayName(target)
 
     if target.SWExp_ActiveChar then
-        MySQLite.query(string.format("UPDATE `swexp_characters` SET callsign = %s WHERE id = %s AND player_id = %s;",
-            MySQLite.SQLStr(callsign), MySQLite.SQLStr(target.SWExp_ActiveChar.id), MySQLite.SQLStr(target.SWExp_ID)))
         target.SWExp_ActiveChar.callsign = callsign
+        -- Виртуальный ADMIN-персонаж (id = -1) не хранится в БД — пропускаем
+        if tonumber(target.SWExp_ActiveChar.id) ~= -1 then
+            MySQLite.query(string.format("UPDATE `swexp_characters` SET callsign = %s WHERE id = %s AND player_id = %s;",
+                MySQLite.SQLStr(callsign), MySQLite.SQLStr(target.SWExp_ActiveChar.id), MySQLite.SQLStr(target.SWExp_ID)))
+        end
     end
 
     ply:ChatPrint(string.format('[SWExp] Позывной игрока %s изменен на %s', target:Nick(), callsign))
@@ -248,9 +254,12 @@ netstream.Hook('SWExp::Scoreboard_EditRank', function(ply, data)
     UpdatePlayerDisplayName(target)
 
     if target.SWExp_ActiveChar then
-        MySQLite.query(string.format("UPDATE `swexp_characters` SET `rank` = %s WHERE id = %s AND player_id = %s;",
-            MySQLite.SQLStr(rank), MySQLite.SQLStr(target.SWExp_ActiveChar.id), MySQLite.SQLStr(target.SWExp_ID)))
         target.SWExp_ActiveChar['rank'] = rank
+        -- Виртуальный ADMIN-персонаж (id = -1) не хранится в БД — пропускаем
+        if tonumber(target.SWExp_ActiveChar.id) ~= -1 then
+            MySQLite.query(string.format("UPDATE `swexp_characters` SET `rank` = %s WHERE id = %s AND player_id = %s;",
+                MySQLite.SQLStr(rank), MySQLite.SQLStr(target.SWExp_ActiveChar.id), MySQLite.SQLStr(target.SWExp_ID)))
+        end
     end
 
     ply:ChatPrint(string.format('[SWExp] Звание игрока %s изменено на %s', target:Nick(), rank))

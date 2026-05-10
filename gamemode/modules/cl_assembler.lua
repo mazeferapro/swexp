@@ -84,12 +84,26 @@ net.Receive("SWExp::Assembler_DepositResult", function()
     SWExp.Assembler._inHand = 0
 
     if ok then
-        chat.AddText(
-            Color(0, 200, 255),   "[Ассемблер] ",
-            Color(200, 220, 255), "Сдано в банк: ",
-            Color(255, 240, 100), "+" .. amount .. " мат.",
-            Color(140, 160, 190), "  (банк: " .. bank .. ")"
-        )
+        -- Читаем флаг обновления лимита
+        local hasUsedUpdate = net.ReadBool()
+        if hasUsedUpdate then
+            local newUsed = net.ReadUInt(16)
+            SWExp.Assembler._usedToday = newUsed
+            chat.AddText(
+                Color(0, 200, 255),   "[Ассемблер] ",
+                Color(200, 220, 255), "Сдано в банк: ",
+                Color(255, 240, 100), "+" .. amount .. " мат.",
+                Color(140, 160, 190), "  (банк: " .. bank .. ") ",
+                Color(100, 220, 140), "Лимит восстановлен на " .. amount .. " мат."
+            )
+        else
+            chat.AddText(
+                Color(0, 200, 255),   "[Ассемблер] ",
+                Color(200, 220, 255), "Сдано в банк: ",
+                Color(255, 240, 100), "+" .. amount .. " мат.",
+                Color(140, 160, 190), "  (банк: " .. bank .. ")"
+            )
+        end
     else
         chat.AddText(Color(255, 80, 80), "[Ассемблер] ", Color(200, 180, 180), errMsg)
     end
@@ -189,7 +203,7 @@ function SWExp.Assembler.OpenMenu(techLevel)
         -- Банк
         SWUI.DrawText("БАНК МАТЕРИАЛОВ", "SWUI.Tiny", 14, 10,
             SWUI.Colors.TextDim, TEXT_ALIGN_LEFT, TEXT_ALIGN_TOP)
-        SWUI.DrawText(tostring(bank), "SWUI.MonoLarge", 14, ph - 10,
+        SWUI.DrawText(tostring(bank), "SWUI.MonoLarge", 14, ph,
             SWUI.Colors.Accent, TEXT_ALIGN_LEFT, TEXT_ALIGN_BOTTOM)
 
         -- Разделитель
@@ -199,7 +213,7 @@ function SWExp.Assembler.OpenMenu(techLevel)
         -- У игрока
         SWUI.DrawText("В ИНВЕНТАРЕ", "SWUI.Tiny", 176, 10,
             SWUI.Colors.TextDim, TEXT_ALIGN_LEFT, TEXT_ALIGN_TOP)
-        SWUI.DrawText(tostring(inHand), "SWUI.MonoLarge", 176, ph - 10,
+        SWUI.DrawText(tostring(inHand), "SWUI.MonoLarge", 176, ph,
             inHand > 0 and Color(255, 220, 60) or SWUI.Colors.TextDim,
             TEXT_ALIGN_LEFT, TEXT_ALIGN_BOTTOM)
 
@@ -212,17 +226,40 @@ function SWExp.Assembler.OpenMenu(techLevel)
             SWUI.Colors.TextHi, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
 
         -- Полоса лимита
-        local barX, barW2, barH2 = 326, 180, 6
+        local barX, barW2, barH2 = 326, 120, 6
         local barY = ph - 14
         SWUI.DrawRoundedRect(barX, barY, barW2, barH2, 3, Color(255,255,255,15))
         local fill = limit > 0 and math.Clamp(usedToday / limit, 0, 1) or 0
         local barCol = fill > 0.85 and Color(255,80,80) or (fill > 0.6 and Color(255,160,0) or SWUI.Colors.Accent)
         SWUI.DrawRoundedRect(barX, barY, math.max(barH2, math.Round(barW2 * fill)), barH2, 3, barCol)
 
-        -- Осталось
-        SWUI.DrawText("осталось: " .. remaining .. " мат.", "SWUI.Tiny", 326 + barW2 + 8, ph / 2 + 2,
-            remaining > 0 and Color(130, 220, 140) or Color(255,80,80),
-            TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
+
+        -- Разделитель перед таймером
+        surface.SetDrawColor(SWUI.Colors.Border)
+        surface.DrawLine(560, 8, 560, ph - 8)
+
+        -- Время до сброса лимита (до полуночи UTC)
+        local now     = os.time()
+        local utcSec  = os.time(os.date("!*t", now))   -- текущий UTC в секундах
+        local utcTbl  = os.date("!*t", now)
+        local midnight = os.time({
+            year  = utcTbl.year,
+            month = utcTbl.month,
+            day   = utcTbl.day + 1,
+            hour  = 0, min = 0, sec = 0,
+            isdst = false
+        })
+        local secsLeft = midnight - now
+        if secsLeft < 0 then secsLeft = 0 end
+        local hh = math.floor(secsLeft / 3600)
+        local mm = math.floor((secsLeft % 3600) / 60)
+        local ss = secsLeft % 60
+        local resetStr = string.format("%02d:%02d:%02d", hh, mm, ss)
+
+        SWUI.DrawText("СБРОС ЛИМИТА", "SWUI.Tiny", 576, 10,
+            SWUI.Colors.TextDim, TEXT_ALIGN_LEFT, TEXT_ALIGN_TOP)
+        SWUI.DrawText(resetStr, "SWUI.Mono", 576, ph - 10,
+            Color(180, 200, 255), TEXT_ALIGN_LEFT, TEXT_ALIGN_BOTTOM)
 
         -- Тех. уровень
         SWUI.DrawText("ТЕХ. УР. " .. techLevel, "SWUI.Small", pw - 14, ph / 2,
@@ -380,9 +417,10 @@ function SWExp.Assembler.OpenMenu(techLevel)
                 surface.SetDrawColor(bord)
                 surface.DrawOutlinedRect(0, 0, pw, ph, 1)
 
-                -- Иконка
-                if recipe.icon then
-                    local mat = Material(recipe.icon)
+                -- Иконка (автоматически берётся из SWExp.Inventory, fallback — recipe.icon)
+                local recipeIcon = cfg.GetRecipeIcon(recipe)
+                if recipeIcon then
+                    local mat = Material(recipeIcon)
                     if mat and not mat:IsError() then
                         surface.SetMaterial(mat)
                         surface.SetDrawColor(locked and Color(80,80,80) or Color(255,255,255))

@@ -29,8 +29,11 @@ hook.Add("PostDrawOpaqueRenderables", "SWExp::DrawAssemblerLabel", function()
         local fadeAlpha = math.Clamp(
             1 - (dist - PROMPT_DIST) / (LABEL_DIST - PROMPT_DIST), 0, 1)
 
-        -- Материалы в инвентаре игрока (кэш из cl_assembler)
-        local totalMats = (SWExp and SWExp.Assembler and SWExp.Assembler._inHand) or 0
+        -- Материалы в инвентаре игрока: берём из NWInt (синхронизируется сервером),
+        -- что позволяет корректно отображать значение без открытия меню ассемблера.
+        -- Для обратной совместимости используем _inHand только как запасной вариант.
+        local totalMats = lp:GetNWInt("SWExp_MatInHand",
+            (SWExp and SWExp.Assembler and SWExp.Assembler._inHand) or 0)
 
         local eyeY = EyeAngles().y
         local pos  = ent:GetPos() + Vector(0, 0, 60)

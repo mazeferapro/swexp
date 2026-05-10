@@ -19,12 +19,13 @@ SWExp.AssemblerConfig = SWExp.AssemblerConfig or {}
 -- ============================================================
 
 SWExp.AssemblerConfig.Categories = {
-    { id = "armor",   name = "Броня",        icon = "icon16/shield.png"  },
-    { id = "weapon",  name = "Оружие",       icon = "icon16/gun.png"     },
-    { id = "ammo",    name = "Боеприпасы",   icon = "icon16/bomb.png"    },
-    { id = "medkit",  name = "Медикаменты",  icon = "icon16/heart.png"   },
-    { id = "tool",    name = "Инструменты",  icon = "icon16/wrench.png"  },
-    { id = "key",     name = "Ключи",        icon = "icon16/key.png"     },
+    { id = "armor",   name = "Броня",        icon = "icon16/armor1.png"      },
+    { id = "weapon",  name = "Оружие",       icon = "icon16/shight.png"      },
+    { id = "ammo",    name = "Боеприпасы",   icon = "icon16/shotgunammo.png" },
+    { id = "medkit",  name = "Медикаменты",  icon = "icon16/health.png"      },
+    { id = "tool",    name = "Инструменты",  icon = "icon16/wrench.png"      },
+    { id = "key",     name = "Ключи",        icon = "icon16/unlock.png"      },
+    { id = "fort",    name = "Строительство",icon = "icon16/brick.png"       },
 }
 
 -- ============================================================
@@ -35,117 +36,123 @@ SWExp.AssemblerConfig.Categories = {
 SWExp.AssemblerConfig.Recipes = {
 
     -- ====================  БРОНЯ  ====================
+    -- Иконки НЕ указываем — они подтягиваются автоматически из sh_inventory.lua
+    -- через SWExp.AssemblerConfig.GetRecipeIcon()
 
     -- Тир 1 (уровень 1)
-    { id="armor_light_t1",    result="armor_light_t1",    category="armor",  techLevel=1, cost=8,
-      name="Лёгкая броня (Тир 1)",    desc="Разведчик — 10% поглощения. Открывает крюк-кошку.",          icon="icon16/user.png"    },
-    { id="armor_medium_t1",   result="armor_medium_t1",   category="armor",  techLevel=1, cost=12,
-      name="Средняя броня (Тир 1)",   desc="Универсальный — 20% поглощения. 2 слота основного оружия.",  icon="icon16/shield.png"  },
-    { id="armor_heavy_t1",    result="armor_heavy_t1",    category="armor",  techLevel=1, cost=16,
-      name="Тяжёлая броня (Тир 1)",   desc="Тяжеловес — 30% поглощения. Открывает слот тяжёлого.",      icon="icon16/shield.png"  },
-    { id="armor_engineer_t1", result="armor_engineer_t1", category="armor",  techLevel=1, cost=12,
-      name="Инженерная броня (Тир 1)",desc="Инженер — 15% поглощения. Датапад строителя.",               icon="icon16/wrench.png"  },
-    { id="armor_medic_t1",    result="armor_medic_t1",    category="armor",  techLevel=1, cost=12,
-      name="Медицинская броня (Тир 1)",desc="Медик — 15% поглощения. Дефибриллятор + Бакто-инжектор.",  icon="icon16/heart.png"   },
+    { id="armor_light_t1",  result="armor_light_t1",  category="armor", techLevel=1, cost=8,
+      name="Лёгкая броня (Тир 1)",     desc="10% поглощения. Крюк-кошка."           },
+    { id="armor_medium_t1", result="armor_medium_t1", category="armor", techLevel=1, cost=12,
+      name="Средняя броня (Тир 1)",    desc="30% поглощения."                        },
+    { id="armor_heavy_t1",  result="armor_heavy_t1",  category="armor", techLevel=1, cost=16,
+      name="Тяжёлая броня (Тир 1)",    desc="40% поглощения."                        },
+    { id="armor_eng_t1",    result="armor_eng_t1",    category="armor", techLevel=1, cost=12,
+      name="Инженерная броня (Тир 1)", desc="25% поглощения. Датапад строителя."    },
+    { id="armor_med_t1",    result="armor_med_t1",    category="armor", techLevel=1, cost=12,
+      name="Броня медика (Тир 1)",     desc="25% поглощения. Дефибриллятор + Бакто-инжектор." },
 
     -- Тир 2 (уровень 2)
-    { id="armor_light_t2",    result="armor_light_t2",    category="armor",  techLevel=2, cost=20,
-      name="Лёгкая броня (Тир 2)",    desc="Разведчик — 15% поглощения. Крюк-кошка Mk.II.",             icon="icon16/user.png"    },
-    { id="armor_medium_t2",   result="armor_medium_t2",   category="armor",  techLevel=2, cost=28,
-      name="Средняя броня (Тир 2)",   desc="Универсальный — 25% поглощения.",                           icon="icon16/shield.png"  },
-    { id="armor_heavy_t2",    result="armor_heavy_t2",    category="armor",  techLevel=2, cost=36,
-      name="Тяжёлая броня (Тир 2)",   desc="Тяжеловес — 40% поглощения.",                               icon="icon16/shield.png"  },
-    { id="armor_engineer_t2", result="armor_engineer_t2", category="armor",  techLevel=2, cost=24,
-      name="Инженерная броня (Тир 2)",desc="Инженер — 20% поглощения.",                                  icon="icon16/wrench.png"  },
-    { id="armor_medic_t2",    result="armor_medic_t2",    category="armor",  techLevel=2, cost=24,
-      name="Медицинская броня (Тир 2)",desc="Медик — 20% поглощения.",                                   icon="icon16/heart.png"   },
+    { id="armor_light_t2",  result="armor_light_t2",  category="armor", techLevel=2, cost=20,
+      name="Лёгкая броня (Тир 2)",     desc="15% поглощения. Крюк-кошка."           },
+    { id="armor_medium_t2", result="armor_medium_t2", category="armor", techLevel=2, cost=28,
+      name="Средняя броня (Тир 2)",    desc="35% поглощения."                        },
+    { id="armor_heavy_t2",  result="armor_heavy_t2",  category="armor", techLevel=2, cost=36,
+      name="Тяжёлая броня (Тир 2)",    desc="45% поглощения."                        },
+    { id="armor_eng_t2",    result="armor_eng_t2",    category="armor", techLevel=2, cost=24,
+      name="Инженерная броня (Тир 2)", desc="30% поглощения. Датапад строителя."    },
+    { id="armor_med_t2",    result="armor_med_t2",    category="armor", techLevel=2, cost=24,
+      name="Броня медика (Тир 2)",     desc="30% поглощения. Дефибриллятор + Бакто-инжектор." },
 
     -- Тир 3 (уровень 3)
-    { id="armor_light_t3",    result="armor_light_t3",    category="armor",  techLevel=3, cost=40,
-      name="Лёгкая броня (Тир 3)",    desc="Разведчик — 20% поглощения.",                               icon="icon16/user.png"    },
-    { id="armor_medium_t3",   result="armor_medium_t3",   category="armor",  techLevel=3, cost=52,
-      name="Средняя броня (Тир 3)",   desc="Универсальный — 30% поглощения.",                           icon="icon16/shield.png"  },
-    { id="armor_heavy_t3",    result="armor_heavy_t3",    category="armor",  techLevel=3, cost=68,
-      name="Тяжёлая броня (Тир 3)",   desc="Тяжеловес — 50% поглощения.",                               icon="icon16/shield.png"  },
-    { id="armor_engineer_t3", result="armor_engineer_t3", category="armor",  techLevel=3, cost=44,
-      name="Инженерная броня (Тир 3)",desc="Инженер — 25% поглощения.",                                  icon="icon16/wrench.png"  },
-    { id="armor_medic_t3",    result="armor_medic_t3",    category="armor",  techLevel=3, cost=44,
-      name="Медицинская броня (Тир 3)",desc="Медик — 25% поглощения.",                                   icon="icon16/heart.png"   },
+    { id="armor_light_t3",  result="armor_light_t3",  category="armor", techLevel=3, cost=40,
+      name="Лёгкая броня (Тир 3)",     desc="20% поглощения. Крюк-кошка."           },
+    { id="armor_medium_t3", result="armor_medium_t3", category="armor", techLevel=3, cost=52,
+      name="Средняя броня (Тир 3)",    desc="40% поглощения."                        },
+    { id="armor_heavy_t3",  result="armor_heavy_t3",  category="armor", techLevel=3, cost=68,
+      name="Тяжёлая броня (Тир 3)",    desc="50% поглощения."                        },
+    { id="armor_eng_t3",    result="armor_eng_t3",    category="armor", techLevel=3, cost=44,
+      name="Инженерная броня (Тир 3)", desc="35% поглощения. Датапад строителя."    },
+    { id="armor_med_t3",    result="armor_med_t3",    category="armor", techLevel=3, cost=44,
+      name="Броня медика (Тир 3)",     desc="35% поглощения. Дефибриллятор + Бакто-инжектор." },
 
     -- Тир 4 (уровень 4)
-    { id="armor_light_t4",    result="armor_light_t4",    category="armor",  techLevel=4, cost=70,
-      name="Лёгкая броня (Тир 4)",    desc="Разведчик — 25% поглощения.",                               icon="icon16/user.png"    },
-    { id="armor_medium_t4",   result="armor_medium_t4",   category="armor",  techLevel=4, cost=90,
-      name="Средняя броня (Тир 4)",   desc="Универсальный — 40% поглощения.",                           icon="icon16/shield.png"  },
-    { id="armor_heavy_t4",    result="armor_heavy_t4",    category="armor",  techLevel=4, cost=110,
-      name="Тяжёлая броня (Тир 4)",   desc="Тяжеловес — 60% поглощения.",                               icon="icon16/shield.png"  },
-    { id="armor_engineer_t4", result="armor_engineer_t4", category="armor",  techLevel=4, cost=75,
-      name="Инженерная броня (Тир 4)",desc="Инженер — 30% поглощения.",                                  icon="icon16/wrench.png"  },
-    { id="armor_medic_t4",    result="armor_medic_t4",    category="armor",  techLevel=4, cost=75,
-      name="Медицинская броня (Тир 4)",desc="Медик — 30% поглощения.",                                   icon="icon16/heart.png"   },
+    { id="armor_light_t4",  result="armor_light_t4",  category="armor", techLevel=4, cost=70,
+      name="Лёгкая броня (Тир 4)",     desc="25% поглощения. Крюк-кошка."           },
+    { id="armor_medium_t4", result="armor_medium_t4", category="armor", techLevel=4, cost=90,
+      name="Средняя броня (Тир 4)",    desc="45% поглощения."                        },
+    { id="armor_heavy_t4",  result="armor_heavy_t4",  category="armor", techLevel=4, cost=110,
+      name="Тяжёлая броня (Тир 4)",    desc="55% поглощения."                        },
+    { id="armor_eng_t4",    result="armor_eng_t4",    category="armor", techLevel=4, cost=75,
+      name="Инженерная броня (Тир 4)", desc="40% поглощения. Датапад строителя."    },
+    { id="armor_med_t4",    result="armor_med_t4",    category="armor", techLevel=4, cost=75,
+      name="Броня медика (Тир 4)",     desc="40% поглощения. Дефибриллятор + Бакто-инжектор." },
 
     -- Тир 5 (уровень 5)
-    { id="armor_light_t5",    result="armor_light_t5",    category="armor",  techLevel=5, cost=110,
-      name="Лёгкая броня (Тир 5)",    desc="Разведчик — 30% поглощения.",                               icon="icon16/user.png"    },
-    { id="armor_medium_t5",   result="armor_medium_t5",   category="armor",  techLevel=5, cost=140,
-      name="Средняя броня (Тир 5)",   desc="Универсальный — 50% поглощения.",                           icon="icon16/shield.png"  },
-    { id="armor_heavy_t5",    result="armor_heavy_t5",    category="armor",  techLevel=5, cost=180,
-      name="Тяжёлая броня (Тир 5)",   desc="Тяжеловес — 70% поглощения.",                               icon="icon16/shield.png"  },
-    { id="armor_engineer_t5", result="armor_engineer_t5", category="armor",  techLevel=5, cost=120,
-      name="Инженерная броня (Тир 5)",desc="Инженер — 35% поглощения.",                                  icon="icon16/wrench.png"  },
-    { id="armor_medic_t5",    result="armor_medic_t5",    category="armor",  techLevel=5, cost=120,
-      name="Медицинская броня (Тир 5)",desc="Медик — 35% поглощения.",                                   icon="icon16/heart.png"   },
-    { id="armor_exotic_t5",   result="armor_exotic_t5",   category="armor",  techLevel=5, cost=220,
-      name="Экзотическая броня (Тир 5)",desc="Биотехнологический прототип Вонгов. Уникальные параметры.",icon="icon16/star.png"    },
+    { id="armor_light_t5",  result="armor_light_t5",  category="armor", techLevel=5, cost=110,
+      name="Лёгкая броня (Тир 5)",     desc="30% поглощения. Крюк-кошка."           },
+    { id="armor_medium_t5", result="armor_medium_t5", category="armor", techLevel=5, cost=140,
+      name="Средняя броня (Тир 5)",    desc="50% поглощения."                        },
+    { id="armor_heavy_t5",  result="armor_heavy_t5",  category="armor", techLevel=5, cost=180,
+      name="Тяжёлая броня (Тир 5)",    desc="60% поглощения."                        },
+    { id="armor_eng_t5",    result="armor_eng_t5",    category="armor", techLevel=5, cost=120,
+      name="Инженерная броня (Тир 5)", desc="45% поглощения. Датапад строителя."    },
+    { id="armor_med_t5",    result="armor_med_t5",    category="armor", techLevel=5, cost=120,
+      name="Броня медика (Тир 5)",     desc="45% поглощения. Дефибриллятор + Бакто-инжектор." },
 
     -- ====================  ОРУЖИЕ  ====================
+    -- weapon_dc15a / weapon_z6 — иконки из инвентаря.
+    -- weapon_dc17 / weapon_artifact — нет записи в инвентаре, icon задаём явно.
 
     { id="weapon_dc17",     result="weapon_dc17",     category="weapon", techLevel=1, cost=6,
-      name="DC-17 Пистолет",          desc="Стандартный пистолет клонов.",                              icon="icon16/gun.png"     },
+      name="DC-17 Пистолет",            desc="Стандартный пистолет клонов.",                           icon="icon16/flash.png" },
     { id="weapon_dc15a",    result="weapon_dc15a",    category="weapon", techLevel=1, cost=10,
-      name="DC-15A Бластерная винтовка",desc="Стандартная бластерная винтовка клонов.",                 icon="icon16/gun.png"     },
+      name="DC-15A Бластерная винтовка",desc="Стандартная бластерная винтовка клонов."                },
     { id="weapon_z6",       result="weapon_z6",       category="weapon", techLevel=4, cost=90,
-      name="Z-6 Роторная пушка",      desc="Тяжёлая роторная пушка. Требует слот HEAVY.",               icon="icon16/bomb.png"    },
+      name="Z-6 Роторная пушка",        desc="Тяжёлая роторная пушка. Требует слот HEAVY."            },
     { id="weapon_artifact", result="weapon_artifact", category="weapon", techLevel=5, cost=150,
-      name="Артефактное оружие",       desc="Оружие древней цивилизации — уникальный тип урона.",        icon="icon16/lightning.png"},
+      name="Артефактное оружие",         desc="Оружие древней цивилизации — уникальный тип урона.",    icon="icon16/flash.png" },
 
     -- ====================  БОЕПРИПАСЫ  ====================
+    -- ammo_blaster — нет записи в инвентаре, icon задаём явно.
 
-    { id="ammo_blaster",      result="ammo_blaster",      amount=30, category="ammo", techLevel=1, cost=3,
-      name="Энергоячейки (×30)",      desc="Стандартные энергоячейки для бластеров.",                   icon="icon16/lightbulb.png"},
-    { id="ammo_grenade",      result="ammo_grenade",      amount=2,  category="ammo", techLevel=2, cost=8,
-      name="Осколочные гранаты (×2)", desc="Стандартные фрагментационные гранаты.",                     icon="icon16/bomb.png"    },
-    { id="ammo_thermal_det",  result="ammo_thermal_det",  amount=2,  category="ammo", techLevel=3, cost=15,
-      name="Термальные детонаторы (×2)",desc="Тепловые гранаты — эффективны против скоплений Вонгов.", icon="icon16/bomb.png"    },
+    { id="ammo_blaster", result="ammo_blaster", amount=30, category="ammo", techLevel=1, cost=3,
+      name="Энергоячейки (×30)", desc="Стандартные энергоячейки для бластеров.", icon="icon16/ammo.png" },
 
     -- ====================  МЕДИКАМЕНТЫ  ====================
+    -- Иконки из инвентаря (swexpicon/swexp-health.png)
 
-    { id="medkit",          result="medkit",         category="medkit", techLevel=1, cost=5,
-      name="Аптечка (50 HP)",          desc="Восстанавливает 50 HP.",                                   icon="icon16/heart.png"   },
+    { id="medkit",          result="medkit",          category="medkit", techLevel=1, cost=5,
+      name="Аптечка (50 HP)",            desc="Восстанавливает 50 HP."                                 },
     { id="medkit_advanced", result="medkit_advanced", category="medkit", techLevel=2, cost=10,
-      name="Аптечка улучшенная (80 HP)",desc="Восстанавливает 80 HP. Улучшенная формула бакто-геля.",  icon="icon16/heart.png"   },
-    { id="stim_stamina",    result="stim_stamina",    category="medkit", techLevel=2, cost=8,
-      name="Стимулятор выносливости",  desc="Временно снимает ограничение бега на 30 сек.",             icon="icon16/heart_add.png"},
-    { id="antidote",        result="antidote",        category="medkit", techLevel=3, cost=18,
-      name="Антидот Вонгских токсинов",desc="Нейтрализует биологические яды Юужань Вонгов.",            icon="icon16/heart_add.png"},
+      name="Аптечка улучшенная (80 HP)", desc="Восстанавливает 80 HP. Улучшенная формула бакто-геля." },
 
     -- ====================  ИНСТРУМЕНТЫ  ====================
+    -- Иконки из инвентаря
 
-    { id="tool_scanner", result="tool_scanner", category="tool", techLevel=1, cost=20,
-      name="Научный сканер",           desc="Основной инструмент сбора ОИ. Дорогой — берегите.",        icon="icon16/transmit.png"},
-    { id="tool_shield",  result="tool_shield",  category="tool", techLevel=3, cost=45,
-      name="Персональный щит",         desc="Временный энергетический щит. Слот SPECIAL.",              icon="icon16/bullet_shield.png"},
-    { id="implant_vong", result="implant_vong", category="tool", techLevel=4, cost=60,
-      name="Вонгский биоимплант",      desc="Временный бонус к выносливости и HP.",                     icon="icon16/asterisk_orange.png"},
+    { id="tool_scanner",    result="tool_scanner",    category="tool", techLevel=1, cost=20,
+      name="Научный сканер",   desc="Основной инструмент сбора ОИ. Дорогой — берегите."               },
+    { id="tool_flashlight", result="tool_flashlight", category="tool", techLevel=1, cost=6,
+      name="Тактический фонарик", desc="Фонарик для тёмных зон. Экипируется в специальный слот, активируется ПКМ." },
 
     -- ====================  КЛЮЧИ  ====================
+    -- Иконки из инвентаря (swexpicon/swexp-unlock.png)
 
     { id="key_tier1", result="key_tier1", category="key", techLevel=2, cost=30,
-      name="Ключ врат Тир 1",          desc="Открывает Зону 2. Теряется при смерти.",                   icon="icon16/key.png"     },
+      name="Ключ врат Тир 1", desc="Открывает Зону 2. Теряется при смерти."   },
     { id="key_tier2", result="key_tier2", category="key", techLevel=3, cost=60,
-      name="Ключ врат Тир 2",          desc="Открывает Зону 3. Теряется при смерти.",                   icon="icon16/key.png"     },
+      name="Ключ врат Тир 2", desc="Открывает Зону 3. Теряется при смерти."   },
     { id="key_tier3", result="key_tier3", category="key", techLevel=4, cost=100,
-      name="Ключ врат Тир 3",          desc="Открывает Зону 4 — максимальная опасность.",               icon="icon16/key.png"     },
+      name="Ключ врат Тир 3", desc="Открывает Зону 4 — максимальная опасность." },
+
+    -- ====================  СТРОИТЕЛЬСТВО  ====================
+    -- Иконки из инвентаря (icon16/brick.png)
+
+    { id="fort_supply_1", result="fort_supply", amount=5,  category="fort", techLevel=1, cost=5,
+      name="Строительные ресурсы (×5)",  desc="Полевые материалы для возведения базовых заграждений. (5 шт.)"  },
+    { id="fort_supply_2", result="fort_supply", amount=15, category="fort", techLevel=2, cost=12,
+      name="Строительные ресурсы (×15)", desc="Усиленный пакет строительных материалов. (15 шт.)"             },
+    { id="fort_supply_3", result="fort_supply", amount=30, category="fort", techLevel=3, cost=22,
+      name="Строительные ресурсы (×30)", desc="Большой запас материалов для серьёзных укреплений. (30 шт.)"   },
 }
 
 -- ============================================================
@@ -198,4 +205,27 @@ end
 function SWExp.AssemblerConfig.GetDefaultLimit(rankID)
     return SWExp.AssemblerConfig.DefaultDailyLimits[rankID]
         or SWExp.AssemblerConfig.DefaultLimit
+end
+
+-- ============================================================
+-- Получить иконку рецепта: сначала из SWExp.Inventory.Items
+-- (единственный источник правды), затем fallback на recipe.icon.
+-- Благодаря этому достаточно прописать icon один раз — в
+-- sh_inventory.lua, и ассемблер подхватит её автоматически.
+-- ============================================================
+
+function SWExp.AssemblerConfig.GetRecipeIcon(recipe)
+    if not recipe then return nil end
+
+    -- Приоритет: иконка зарегистрированного предмета инвентаря
+    local inv = SWExp.Inventory
+    if inv and inv.Items then
+        local itemData = inv.Items[recipe.result]
+        if itemData and itemData.icon and itemData.icon ~= "" then
+            return itemData.icon
+        end
+    end
+
+    -- Fallback: иконка, прописанная прямо в рецепте
+    return recipe.icon or nil
 end

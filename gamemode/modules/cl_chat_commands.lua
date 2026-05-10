@@ -152,29 +152,105 @@ net.Receive("SWExp::ChatCmd_Radio", function()
 end)
 
 -- ============================================================
--- Размер шрифта ChatHUD
--- Увеличиваем стандартный мелкий шрифт EasyChat (17–20px → 26px)
+-- Шрифт ChatHUD (плашка сообщений без открытого окна чата)
+--
+-- Баг был в том, что мы меняли только размер шрифта
+-- (EasyChat.ChatHUD:UpdateFontSize), а имя шрифта оставалось
+-- по умолчанию. Плюс у EasyChat свой JSON-конфиг, который
+-- читается с задержкой и затирает наши значения.
+-- Поэтому применяем шрифт надёжно: через все возможные API
+-- и держим перепривязку через хук репейнта ChatHUD.
 -- ============================================================
 
-local CHATHUD_FONT_SIZE = 26  -- ← меняй это значение под себя
+local CHATHUD_FONT_NAME = 'Exo 2'   -- ← имя шрифта (как в TTF metadata)
+local CHATHUD_FONT_SIZE = 26        -- ← размер в пикселях
 
-local function ApplyChatHudFontSize()
-    if EasyChat and EasyChat.ChatHUD and EasyChat.ChatHUD.UpdateFontSize then
-        EasyChat.ChatHUD:UpdateFontSize(CHATHUD_FONT_SIZE)
-        return true
+-- Перерегистрируем все известные внутренние шрифты ChatHUD
+local function RebuildChatHudFonts()
+    -- Стандартные имена шрифтов EasyChat ChatHUD во всех версиях
+    local fontNames = {
+        'EasyChatHUDFont',
+        'ECChatHUDFont',
+        'easychat_default',
+        'EasyChatFont',
+    }
+
+    for _, fName in ipairs(fontNames) do
+        surface.CreateFont(fName, {
+            font      = CHATHUD_FONT_NAME,
+            size      = CHATHUD_FONT_SIZE,
+            weight    = 600,
+            extended  = true,
+            antialias = true,
+            shadow    = false,
+        })
     end
-    return false
 end
 
--- Пробуем сразу, потом через тик, потом через хук
-if not ApplyChatHudFontSize() then
-    timer.Simple(0, function()
-        if not ApplyChatHudFontSize() then
-            hook.Add("ECInitialized", "SWExp::ChatHudFontSize", function()
-                ApplyChatHudFontSize()
-            end)
-        end
-    end)
+local function ApplyChatHudFont(reason)
+    if not EasyChat or not EasyChat.ChatHUD then return false end
+
+    -- 1) Convar'ы EasyChat — переживают перезаход
+    local cvName = GetConVar('easychat_hud_font_name')
+                or GetConVar('easychat_font_name')
+    local cvSize = GetConVar('easychat_hud_font_size')
+                or GetConVar('easychat_font_size')
+
+    if cvName then RunConsoleCommand(cvName:GetName(), CHATHUD_FONT_NAME) end
+    if cvSize then RunConsoleCommand(cvSize:GetName(), tostring(CHATHUD_FONT_SIZE)) end
+
+    -- 2) Прямой вызов методов ChatHUD
+    if EasyChat.ChatHUD.UpdateFont then
+        EasyChat.ChatHUD:UpdateFont(CHATHUD_FONT_NAME)
+    elseif EasyChat.ChatHUD.SetFontName then
+        EasyChat.ChatHUD:SetFontName(CHATHUD_FONT_NAME)
+    elseif EasyChat.ChatHUD.SetFont then
+        EasyChat.ChatHUD:SetFont(CHATHUD_FONT_NAME)
+    end
+
+    if EasyChat.ChatHUD.UpdateFontSize then
+        EasyChat.ChatHUD:UpdateFontSize(CHATHUD_FONT_SIZE)
+    end
+
+    -- 3) Перерегистрируем все возможные имена шрифтов
+    RebuildChatHudFonts()
+
+    -- 4) Заставляем ChatHUD перерисоваться с новым шрифтом
+    if EasyChat.ChatHUD.InvalidateLayout then
+        EasyChat.ChatHUD:InvalidateLayout(true)
+    end
+
+    print(string.format(
+        '[SWExp] ChatHUD font applied: %s @ %dpx (reason=%s, cvName=%s)',
+        CHATHUD_FONT_NAME, CHATHUD_FONT_SIZE, reason or '?',
+        cvName and cvName:GetName() or 'nil'
+    ))
+
+    return true
 end
+
+-- Применяем при загрузке (несколько попыток с разной задержкой)
+hook.Add('ECInitialized', 'SWExp::ChatHudFont_OnInit', function()
+    ApplyChatHudFont('ECInitialized')
+end)
+
+hook.Add('InitPostEntity', 'SWExp::ChatHudFont_OnInitPostEntity', function()
+    timer.Simple(0,   function() ApplyChatHudFont('IPE+0')  end)
+    timer.Simple(0.5, function() ApplyChatHudFont('IPE+0.5') end)
+    timer.Simple(2,   function() ApplyChatHudFont('IPE+2')   end)
+    timer.Simple(5,   function() ApplyChatHudFont('IPE+5')   end)
+end)
+
+-- Если EasyChat уже загружен в момент первого запуска файла
+timer.Simple(0, function()
+    ApplyChatHudFont('initial')
+end)
+
+-- Ручная команда для отладки
+concommand.Add('swexp_chathud_font', function(_, _, args)
+    if args[1] then CHATHUD_FONT_NAME = args[1] end
+    if args[2] then CHATHUD_FONT_SIZE = tonumber(args[2]) or CHATHUD_FONT_SIZE end
+    ApplyChatHudFont('concommand')
+end, nil, 'Применить шрифт ChatHUD: swexp_chathud_font "Exo 2" 26')
 
 print('[SWExp] RP команды чата (клиент) загружены.')

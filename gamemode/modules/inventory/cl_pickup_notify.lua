@@ -21,8 +21,8 @@ local CFG = {
     Width            = 260,     -- Ширина панели
     Height           = 52,      -- Высота одной панели
     Gap              = 6,       -- Отступ между панелями
-    PosX             = nil,     -- nil = авто (правый край)
-    PosY             = nil,     -- nil = авто (над амmo HUD)
+    MarginLeft       = 30,      -- Отступ от левого края
+    MarginTop        = 30,      -- Отступ от верха экрана (база)
     IconSize         = 32,      -- Размер иконки предмета
 }
 
@@ -84,7 +84,7 @@ local function AddPickupNotification(itemID, amount)
 
     table.insert(Notifications, {
         alpha     = 0,
-        slideX    = S(CFG.Width + 20),  -- Начинаем за краем экрана
+        slideX    = -S(CFG.Width + 20),  -- Начинаем за левым краем экрана
         startTime = CurTime(),
         name      = name,
         amount    = amount or 1,
@@ -119,9 +119,11 @@ hook.Add("HUDPaint", "SWExp::DrawPickupNotifications", function()
     local sh = ScrH()
     local now = CurTime()
 
-    local baseX = sw - S(CFG.Width) - S(30)
-    -- Позиционируем над блоком амуниции (ammo HUD находится ~ScrH - 90)
-    local baseY = sh - S(120) - (#Notifications * (S(CFG.Height) + S(CFG.Gap)))
+    -- Левый верхний угол. Размещаемся ниже Pickup Feed и блока Notifications.
+    local baseX = S(CFG.MarginLeft)
+    local baseY = S(CFG.MarginTop)
+        + (SWExp_PickupFeedHeight or 0)
+        + (SWExp_NotificationsHeight or 0)
 
     local toRemove = {}
 
