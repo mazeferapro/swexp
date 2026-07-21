@@ -172,7 +172,7 @@ function SWExp.Assembler.OpenMenu(techLevel)
     -- ============================================================
     -- Размеры
     -- ============================================================
-    local W, H  = 1100, 760
+    local W, H  = 1280, 840
     local PAD   = 16
 
     local frame, content = SWUI.Animated.CreateWindow("АССЕМБЛЕР", W, H, nil, SWUI.Colors.Accent)
@@ -375,27 +375,130 @@ function SWExp.Assembler.OpenMenu(techLevel)
     SWExp.Assembler._recipeScroll = scroll
 
     -- ============================================================
-    -- Список рецептов
+    -- Список рецептов (с группировкой по тирам)
     -- ============================================================
+
+    -- Цвета редкости по тирам (совпадают с GetRarityColor в sh_inventory)
+    local TIER_COLORS = {
+        [1] = Color(168, 204, 220),   -- common    — светло-синий
+        [2] = Color(0,  238, 119),    -- uncommon  — зелёный
+        [3] = Color(0,  184, 255),    -- rare      — синий
+        [4] = Color(163, 53, 238),    -- epic      — фиолетовый
+        [5] = Color(255, 136,  0),    -- legendary — оранжевый
+    }
+    local TIER_NAMES = { "I", "II", "III", "IV", "V" }
+
+    -- Состояние сворачивания тиров: сохраняется между сменой категорий
+    -- collapsedTiers[N] = true  → тир N свёрнут
+    local collapsedTiers = {}
+
     local function PopulateRecipes(categoryID)
         scroll:Clear()
         local recipes = cfg.GetRecipesByCategory(categoryID)
         if not recipes or #recipes == 0 then
             local lbl = vgui.Create("DLabel", scroll)
             lbl:SetText("Рецептов нет.") lbl:SetFont("SWUI.Body")
-            lbl:SetTextColor(SWUI.Colors.TextDim) lbl:SizeToContents() lbl:SetPos(10,10)
+            lbl:SetTextColor(SWUI.Colors.TextDim) lbl:SizeToContents() lbl:SetPos(10, 10)
             return
         end
 
-        local rowH = 88
-        local y    = 0
-        for _, recipe in ipairs(recipes) do
-            local locked   = recipe.techLevel and recipe.techLevel > techLevel
-            local cost     = recipe.cost or 0
-            local rName    = recipe.name or recipe.result
-            local rDesc    = recipe.desc or ""
-            local rAmt     = recipe.amount or 1
+        local rowH      = 100   -- высота строки рецепта
+        local tierHeadH = 32    -- высота заголовка тира
+        local iconSz    = 44    -- размер иконки предмета
+        local iconX     = 10    -- отступ иконки слева
+        local textX     = iconX + iconSz + 12  -- начало текстового блока
 
+        local y           = 4
+        local currentTier = nil
+
+        for _, recipe in ipairs(recipes) do
+            local tier   = recipe.techLevel or 1
+            local locked = tier > techLevel
+            local cost   = recipe.cost or 0
+            local rName  = recipe.name or recipe.result
+            local rDesc  = recipe.desc or ""
+            local rAmt   = recipe.amount or 1
+            local tc     = TIER_COLORS[tier] or Color(200, 200, 200)
+
+            -- ── Заголовок тира (кликабельный) ────────────────────────
+            if tier ~= currentTier then
+                currentTier = tier
+                local tierLocked  = tier > techLevel
+                local capturedCat = categoryID  -- захватываем для замыкания
+
+                local hdr = vgui.Create("DPanel", scroll)
+                hdr:SetPos(0, y)
+                hdr:SetSize(recipeW - 20, tierHeadH)
+                hdr:SetCursor("hand")
+
+                hdr.Paint = function(self, pw, ph)
+                    local collapsed = collapsedTiers[tier]
+                    local hov       = self:IsHovered()
+
+                    -- фоновый тинт (чуть ярче при наведении)
+                    local alpha = hov and (tierLocked and 18 or 32) or (tierLocked and 10 or 22)
+                    surface.SetDrawColor(Color(tc.r, tc.g, tc.b, alpha))
+                    surface.DrawRect(0, 0, pw, ph)
+
+                    -- левая полоса цвета тира
+                    surface.SetDrawColor(tierLocked and Color(100, 60, 60) or tc)
+                    surface.DrawRect(0, 0, 3, ph)
+
+                    -- нижняя линия-разделитель
+                    surface.SetDrawColor(Color(tc.r, tc.g, tc.b, 35))
+                    surface.DrawRect(0, ph - 1, pw, 1)
+
+                    -- стрелка-индикатор (треугольник)
+                    local arrowX, arrowY = 16, math.floor(ph / 2)
+                    local arrowCol = tierLocked and Color(120, 70, 70) or tc
+                    draw.NoTexture()
+                    surface.SetDrawColor(arrowCol)
+                    if collapsed then
+                        -- ► вправо (свёрнуто)
+                        surface.DrawPoly({
+                            { x = arrowX - 4, y = arrowY - 5 },
+                            { x = arrowX - 4, y = arrowY + 5 },
+                            { x = arrowX + 4, y = arrowY },
+                        })
+                    else
+                        -- ▼ вниз (развёрнуто)
+                        surface.DrawPoly({
+                            { x = arrowX - 5, y = arrowY - 3 },
+                            { x = arrowX + 5, y = arrowY - 3 },
+                            { x = arrowX,     y = arrowY + 4 },
+                        })
+                    end
+
+                    -- подпись тира
+                    local tLabel = "   ТИР " .. (TIER_NAMES[tier] or tostring(tier))
+                    SWUI.DrawText(tLabel, "SWUI.Small", 26, ph / 2,
+                        tierLocked and Color(140, 80, 80) or tc,
+                        TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
+
+                    -- статус / подсказка справа
+                    if tierLocked then
+                        SWUI.DrawText("ЗАБЛОКИРОВАНО", "SWUI.Tiny", pw - 10, ph / 2,
+                            Color(200, 80, 80), TEXT_ALIGN_RIGHT, TEXT_ALIGN_CENTER)
+                    else
+                        local hint = collapsed and "нажмите чтобы развернуть" or "нажмите чтобы свернуть"
+                        SWUI.DrawText(hint, "SWUI.Tiny", pw - 10, ph / 2,
+                            Color(tc.r, tc.g, tc.b, hov and 200 or 100),
+                            TEXT_ALIGN_RIGHT, TEXT_ALIGN_CENTER)
+                    end
+                end
+
+                hdr.OnMousePressed = function()
+                    collapsedTiers[tier] = not collapsedTiers[tier]
+                    PopulateRecipes(capturedCat)
+                end
+
+                y = y + tierHeadH + 3
+            end
+
+            -- ── Пропускаем рецепты свёрнутого тира ───────────────────
+            if collapsedTiers[tier] then continue end
+
+            -- ── Строка рецепта ────────────────────────────────────────
             local function CanCraft()
                 if locked then return false end
                 if SWExp.Assembler._bank < cost then return false end
@@ -412,48 +515,56 @@ function SWExp.Assembler.OpenMenu(techLevel)
                 local bg  = locked and Color(22, 10, 10)
                          or (can and Color(4, 22, 12) or Color(14, 18, 28))
                 SWUI.DrawRoundedRect(0, 0, pw, ph, 6, bg)
+
+                -- Рамка
                 local bord = locked and Color(80, 30, 30)
                           or (can and Color(0, 100, 50) or SWUI.Colors.Border)
                 surface.SetDrawColor(bord)
                 surface.DrawOutlinedRect(0, 0, pw, ph, 1)
 
-                -- Иконка (автоматически берётся из SWExp.Inventory, fallback — recipe.icon)
+                -- Левая полоса цвета тира
+                surface.SetDrawColor(Color(tc.r, tc.g, tc.b, locked and 35 or 90))
+                surface.DrawRect(0, 0, 3, ph)
+
+                -- Иконка (увеличенная)
                 local recipeIcon = cfg.GetRecipeIcon(recipe)
                 if recipeIcon then
                     local mat = Material(recipeIcon)
                     if mat and not mat:IsError() then
                         surface.SetMaterial(mat)
-                        surface.SetDrawColor(locked and Color(80,80,80) or Color(255,255,255))
-                        surface.DrawTexturedRect(10, ph/2-10, 20, 20)
+                        surface.SetDrawColor(locked and Color(80, 80, 80) or Color(255, 255, 255))
+                        surface.DrawTexturedRect(iconX, math.floor(ph / 2 - iconSz / 2), iconSz, iconSz)
                     end
                 end
 
                 -- Название
                 local nameCol = locked and SWUI.Colors.TextDim
                              or (can and SWUI.Colors.Green or SWUI.Colors.TextHi)
-                SWUI.DrawText(rName, "SWUI.Body", 38, 10, nameCol, TEXT_ALIGN_LEFT, TEXT_ALIGN_TOP)
-                SWUI.DrawText(rDesc, "SWUI.Tiny", 38, 36, SWUI.Colors.TextDim, TEXT_ALIGN_LEFT, TEXT_ALIGN_TOP)
+                SWUI.DrawText(rName, "SWUI.Body", textX, 12, nameCol, TEXT_ALIGN_LEFT, TEXT_ALIGN_TOP)
+
+                -- Описание
+                SWUI.DrawText(rDesc, "SWUI.Tiny", textX, 38, SWUI.Colors.TextDim, TEXT_ALIGN_LEFT, TEXT_ALIGN_TOP)
 
                 -- Стоимость
-                local bank = SWExp.Assembler._bank
+                local bank    = SWExp.Assembler._bank
                 local costCol = bank >= cost and Color(255, 220, 100) or Color(255, 80, 80)
-                SWUI.DrawText("Стоимость: " .. cost .. " мат.", "SWUI.Small", 38, ph - 16,
+                SWUI.DrawText("Стоимость: " .. cost .. " мат.", "SWUI.Small", textX, ph - 18,
                     locked and SWUI.Colors.TextDim or costCol, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
 
                 -- Количество результата
                 if rAmt > 1 then
-                    SWUI.DrawText("×" .. rAmt, "SWUI.Small", pw - 110, 10,
+                    SWUI.DrawText("x" .. rAmt, "SWUI.Small", pw - 130, 12,
                         SWUI.Colors.Accent, TEXT_ALIGN_LEFT, TEXT_ALIGN_TOP)
                 end
 
-                -- Замок / уровень
+                -- Метка блокировки
                 if locked then
-                    SWUI.DrawText("ЗАБЛОК. УР." .. (recipe.techLevel or 1), "SWUI.Tiny", pw - 110, 10,
+                    SWUI.DrawText("ТИР " .. (recipe.techLevel or 1), "SWUI.Tiny", pw - 130, 12,
                         Color(200, 80, 80), TEXT_ALIGN_LEFT, TEXT_ALIGN_TOP)
                 end
             end
 
-            -- Кнопка
+            -- Кнопка СОЗДАТЬ
             if not locked then
                 local btnW = 110
                 local btn  = SWUI.CreateButton(row, "СОЗДАТЬ",
@@ -463,15 +574,15 @@ function SWExp.Assembler.OpenMenu(techLevel)
                     local can = CanCraft()
                     local hov = self:IsHovered()
                     if can then
-                        SWUI.DrawRoundedRect(0,0,bw,bh,4, hov and Color(0,55,28) or Color(0,34,16))
-                        surface.SetDrawColor(hov and SWUI.Colors.Green or Color(0,100,50))
-                        surface.DrawOutlinedRect(0,0,bw,bh,1)
-                        SWUI.DrawText("СОЗДАТЬ","SWUI.Small",bw/2,bh/2,SWUI.Colors.Green,TEXT_ALIGN_CENTER,TEXT_ALIGN_CENTER)
+                        SWUI.DrawRoundedRect(0, 0, bw, bh, 4, hov and Color(0, 55, 28) or Color(0, 34, 16))
+                        surface.SetDrawColor(hov and SWUI.Colors.Green or Color(0, 100, 50))
+                        surface.DrawOutlinedRect(0, 0, bw, bh, 1)
+                        SWUI.DrawText("СОЗДАТЬ", "SWUI.Small", bw/2, bh/2, SWUI.Colors.Green, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
                     else
-                        SWUI.DrawRoundedRect(0,0,bw,bh,4, Color(15,20,25))
+                        SWUI.DrawRoundedRect(0, 0, bw, bh, 4, Color(15, 20, 25))
                         surface.SetDrawColor(SWUI.Colors.Border)
-                        surface.DrawOutlinedRect(0,0,bw,bh,1)
-                        SWUI.DrawText("СОЗДАТЬ","SWUI.Small",bw/2,bh/2,SWUI.Colors.TextDim,TEXT_ALIGN_CENTER,TEXT_ALIGN_CENTER)
+                        surface.DrawOutlinedRect(0, 0, bw, bh, 1)
+                        SWUI.DrawText("СОЗДАТЬ", "SWUI.Small", bw/2, bh/2, SWUI.Colors.TextDim, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
                     end
                 end
                 btn.DoClick = function()
@@ -511,7 +622,7 @@ function SWExp.Assembler.OpenMenu(techLevel)
                 local m = Material(cat.icon)
                 if m and not m:IsError() then
                     surface.SetMaterial(m) surface.SetDrawColor(255,255,255)
-                    surface.DrawTexturedRect(10, ph/2-8, 16, 16)
+                    surface.DrawTexturedRect(8, ph/2-9, 18, 18)
                 end
             end
             SWUI.DrawText(cat.name, "SWUI.Body", 34, ph/2,

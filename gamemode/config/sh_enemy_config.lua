@@ -155,7 +155,7 @@ C.Tier = {
         aggression      = 0.6,
 
         -- ЗАМЕНИ на своих NPC тира 1
-        npcClasses      = { "npc_headcrab", "npc_headcrab_fast" },
+        npcClasses      = { "npc_vj_gc_slasher5", "npc_vj_gc_infector", "npc_vj_gc_pack", "npc_vj_gc_lurker", "npc_vj_gc_leaper", "npc_vj_gc_pregnant"},
 
         noiseToEnemy    = 20,    -- 1 враг за каждые 20 единиц шума
         maxConcurrent   = 4,

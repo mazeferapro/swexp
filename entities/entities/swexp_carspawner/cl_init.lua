@@ -38,7 +38,7 @@ hook.Add("PostDrawOpaqueRenderables", "SWExp::DrawCarSpawnerLabel", function()
         end
 
         local eyeY = EyeAngles().y
-        local pos  = ent:GetPos() + Vector(0, 0, 65)
+        local pos  = ent:GetPos() + Vector(0, 0, 80)
 
         cam.Start3D2D(pos, Angle(0, eyeY - 90, 90), 0.085)
 

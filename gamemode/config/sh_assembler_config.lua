@@ -19,13 +19,14 @@ SWExp.AssemblerConfig = SWExp.AssemblerConfig or {}
 -- ============================================================
 
 SWExp.AssemblerConfig.Categories = {
-    { id = "armor",   name = "Броня",        icon = "icon16/armor1.png"      },
-    { id = "weapon",  name = "Оружие",       icon = "icon16/shight.png"      },
-    { id = "ammo",    name = "Боеприпасы",   icon = "icon16/shotgunammo.png" },
-    { id = "medkit",  name = "Медикаменты",  icon = "icon16/health.png"      },
-    { id = "tool",    name = "Инструменты",  icon = "icon16/wrench.png"      },
-    { id = "key",     name = "Ключи",        icon = "icon16/unlock.png"      },
-    { id = "fort",    name = "Строительство",icon = "icon16/brick.png"       },
+    { id = "armor",      name = "Броня",        icon = "swexpicon/swexp-swexp-armor1.png"      },
+    { id = "weapon",     name = "Оружие",       icon = "swexpicon/swexp-swords.png"      },
+    { id = "ammo",       name = "Боеприпасы",   icon = "swexpicon/swexp-swexp-ammo.png" },
+    { id = "medkit",     name = "Медикаменты",  icon = "swexpicon/swexp-health.png"      },
+    { id = "tool",       name = "Инструменты",  icon = "swexpicon/swexp-wrench.png"      },
+    { id = "key",        name = "Ключи",        icon = "swexpicon/swexp-lock.png"      },
+    { id = "fort",       name = "Строительство",icon = "swexpicon/swexp-shotgunammo.png"       },
+    { id = "granade",    name = "Гранаты",      icon = "swexpicon/swexp-nade-thermal.png"       },
 }
 
 -- ============================================================
@@ -100,17 +101,67 @@ SWExp.AssemblerConfig.Recipes = {
       name="Броня медика (Тир 5)",     desc="45% поглощения. Дефибриллятор + Бакто-инжектор." },
 
     -- ====================  ОРУЖИЕ  ====================
-    -- weapon_dc15a / weapon_z6 — иконки из инвентаря.
-    -- weapon_dc17 / weapon_artifact — нет записи в инвентаре, icon задаём явно.
+    -- Иконки подтягиваются автоматически из sh_inventory.lua через GetRecipeIcon().
+    -- icon указывается явно только для предметов без записи в инвентаре.
+    -- Редкость → Тир: common=1, uncommon=2, rare=3, epic=4, legendary=5
 
-    { id="weapon_dc17",     result="weapon_dc17",     category="weapon", techLevel=1, cost=6,
-      name="DC-17 Пистолет",            desc="Стандартный пистолет клонов.",                           icon="icon16/flash.png" },
-    { id="weapon_dc15a",    result="weapon_dc15a",    category="weapon", techLevel=1, cost=10,
-      name="DC-15A Бластерная винтовка",desc="Стандартная бластерная винтовка клонов."                },
-    { id="weapon_z6",       result="weapon_z6",       category="weapon", techLevel=4, cost=90,
-      name="Z-6 Роторная пушка",        desc="Тяжёлая роторная пушка. Требует слот HEAVY."            },
-    { id="weapon_artifact", result="weapon_artifact", category="weapon", techLevel=5, cost=150,
-      name="Артефактное оружие",         desc="Оружие древней цивилизации — уникальный тип урона.",    icon="icon16/flash.png" },
+    -- Тир 1 (common)
+    { id="weapon_dc15s",         result="weapon_dc15s",         category="weapon", techLevel=1, cost=10,
+      name="DC-15S Бластер-карабин",        desc="Укороченная бластерная винтовка клонов. Слот PRIMARY."          },
+    { id="weapon_dc17",          result="weapon_dc17",          category="weapon", techLevel=1, cost=6,
+      name="DC-17 Пистолет",                desc="Стандартный пистолет клонов. Слот SECONDARY."                   },
+
+    -- Тир 2 (uncommon)
+    { id="weapon_dc15a",         result="weapon_dc15a",         category="weapon", techLevel=2, cost=18,
+      name="DC-15A Бластерная винтовка",    desc="Стандартная бластерная винтовка клонов. Слот PRIMARY."          },
+    { id="weapon_dc15sg",        result="weapon_dc15sg",        category="weapon", techLevel=2, cost=20,
+      name="DC-15SG Гренадёрская",          desc="DC-15S с подствольным гранатомётом. Слот PRIMARY."              },
+    { id="weapon_dc15x",         result="weapon_dc15x",         category="weapon", techLevel=2, cost=22,
+      name="DC-15X Снайперская",            desc="Снайперская версия DC-15. Слот PRIMARY."                        },
+    { id="weapon_dc17e",         result="weapon_dc17e",         category="weapon", techLevel=2, cost=14,
+      name="DC-17 Расширенный",             desc="DC-17 с расширенным магазином. Слот SECONDARY."                 },
+    { id="weapon_dc17d",         result="weapon_dc17d",         category="weapon", techLevel=2, cost=16,
+      name="DC-17 Двойные",                 desc="Пара стандартных DC-17 акимбо. Слот SECONDARY."                 },
+    { id="weapon_dp24",          result="weapon_dp24",          category="weapon", techLevel=2, cost=18,
+      name="DP-24",                         desc="Лёгкий бластерный пулемёт. Слот PRIMARY."                       },
+    { id="weapon_rps6",          result="weapon_rps6",          category="weapon", techLevel=2, cost=24,
+      name="RPS-6",                         desc="Ручной ракетный пусковой комплекс. Слот HEAVY."                 },
+    { id="weapon_z6",            result="weapon_z6",            category="weapon", techLevel=2, cost=24,
+      name="Z-6 Роторная пушка",            desc="Тяжёлая роторная бластерная пушка. Слот HEAVY."                 },
+
+    -- Тир 3 (rare)
+    { id="weapon_dc15ag",        result="weapon_dc15ag",        category="weapon", techLevel=3, cost=35,
+      name="DC-15AG Гренадёрская",          desc="DC-15A с подствольным гранатомётом. Слот PRIMARY."              },
+    { id="weapon_dc17de",        result="weapon_dc17de",        category="weapon", techLevel=3, cost=28,
+      name="DC-17 Двойные улучшенные",      desc="Пара улучшенных DC-17 акимбо. Слот SECONDARY."                  },
+    { id="weapon_dp23",          result="weapon_dp23",          category="weapon", techLevel=3, cost=38,
+      name="DP-23",                         desc="Улучшенный бластерный пулемёт. Слот PRIMARY."                   },
+    { id="weapon_",              result="weapon_",              category="weapon", techLevel=3, cost=38,
+      name="DP-24C",                        desc="DP-24 с компактным кожухом. Слот PRIMARY.",                    },
+    { id="weapon_e9",            result="weapon_e9",            category="weapon", techLevel=3, cost=32,
+      name="E-9",                           desc="Компактная бластерная винтовка. Слот PRIMARY."                   },
+    { id="weapon_dc15le",        result="weapon_dc15le",        category="weapon", techLevel=3, cost=40,
+      name="DC-15LE",                       desc="Облегчённая версия DC-15. Слот PRIMARY."                         },
+    { id="weapon_smartlauncher", result="weapon_smartlauncher", category="weapon", techLevel=3, cost=42,
+      name="Smart Launcher",                desc="Самонаводящийся гранатомёт. Слот PRIMARY."                       },
+    { id="weapon_hh12",          result="weapon_hh12",          category="weapon", techLevel=3, cost=45,
+      name="HH-12",                         desc="Тяжёлый ракетный комплекс. Слот HEAVY."                         },
+    { id="weapon_z6a",           result="weapon_z6a",           category="weapon", techLevel=3, cost=48,
+      name="Z-6 Advanced",                  desc="Улучшенная роторная бластерная пушка. Слот HEAVY."               },
+
+    -- Тир 4 (epic)
+    { id="weapon_dp23c",         result="weapon_dp23c",         category="weapon", techLevel=4, cost=70,
+      name="DP-23C",                        desc="DP-23 с компактным кожухом. Слот PRIMARY."                       },
+    { id="weapon_westarm5",      result="weapon_westarm5",      category="weapon", techLevel=4, cost=75,
+      name="Westarm-5",                     desc="Высокотехнологичная бластерная система. Слот PRIMARY."           },
+    { id="weapon_plx1",          result="weapon_plx1",          category="weapon", techLevel=4, cost=90,
+      name="PLX-1",                         desc="Тяжёлый противотанковый ракетный комплекс. Слот HEAVY."         },
+
+    -- Тир 5 (legendary)
+    { id="weapon_g125",          result="weapon_g125",          category="weapon", techLevel=5, cost=120,
+      name="G-125",                         desc="Легендарный пистолет. Слот SECONDARY.",                         },
+    { id="weapon_antimaterial",  result="weapon_antimaterial",  category="weapon", techLevel=5, cost=150,
+      name="K-43 Противоматериальная",      desc="Легендарная снайперская винтовка. Слот PRIMARY."                },
 
     -- ====================  БОЕПРИПАСЫ  ====================
     -- ammo_blaster — нет записи в инвентаре, icon задаём явно.
@@ -121,10 +172,16 @@ SWExp.AssemblerConfig.Recipes = {
     -- ====================  МЕДИКАМЕНТЫ  ====================
     -- Иконки из инвентаря (swexpicon/swexp-health.png)
 
-    { id="medkit",          result="medkit",          category="medkit", techLevel=1, cost=5,
-      name="Аптечка (50 HP)",            desc="Восстанавливает 50 HP."                                 },
-    { id="medkit_advanced", result="medkit_advanced", category="medkit", techLevel=2, cost=10,
-      name="Аптечка улучшенная (80 HP)", desc="Восстанавливает 80 HP. Улучшенная формула бакто-геля." },
+    { id="medkit",          result="medkit",          category="medkit", techLevel=1, cost=2,
+      name="Аптечка (20 HP)",            desc="Восстанавливает 20 HP."                                 },
+    { id="medkit_advanced", result="medkit_advanced", category="medkit", techLevel=2, cost=3,
+      name="Аптечка улучшенная (40 HP)", desc="Восстанавливает 40 HP. Улучшенная формула бакто-геля." },
+    { id="medkit_sci", result="medkit_sci", category="medkit", techLevel=3, cost=4,
+      name="Научная аптечка (60 HP)", desc="Восстанавливает 60 HP." },
+    { id="medkit_exo", result="medkit_exo", category="medkit", techLevel=4, cost=5,
+      name="Экзо аптечка (80 HP)", desc="Восстанавливает 80 HP." },
+    { id="medkit_nanit", result="medkit_nanit", category="medkit", techLevel=5, cost=6,
+      name="Нанитная аптечка (100 HP)", desc="Восстанавливает 100 HP." },
 
     -- ====================  ИНСТРУМЕНТЫ  ====================
     -- Иконки из инвентаря
@@ -153,6 +210,65 @@ SWExp.AssemblerConfig.Recipes = {
       name="Строительные ресурсы (×15)", desc="Усиленный пакет строительных материалов. (15 шт.)"             },
     { id="fort_supply_3", result="fort_supply", amount=30, category="fort", techLevel=3, cost=22,
       name="Строительные ресурсы (×30)", desc="Большой запас материалов для серьёзных укреплений. (30 шт.)"   },
+    
+    -- ====================  СТРОИТЕЛЬСТВО  ====================
+
+    { id="arccwknadebacta", result="arccwknadebacta", category="granade", techLevel=1, cost=5,
+      name="Бакта-граната", desc="Граната с бактой." },
+
+    { id="arccwknadefrag", result="arccwknadefrag", category="granade", techLevel=1, cost=5,
+      name="Граната C-14 (фраг)", desc="Противотанковая граната." },
+
+    { id="arccwknadethermal", result="arccwknadethermal", category="granade", techLevel=1, cost=5,
+      name="Термальный детонатор", desc="Высокий урон по площади." },
+
+    { id="arccwknadesmoke", result="arccwknadesmoke", category="granade", techLevel=1, cost=5,
+      name="Дымовая граната", desc="Создаёт облако дыма." },
+
+    { id="arccwknadeflashbang", result="arccwknadeflashbang", category="granade", techLevel=1, cost=5,
+      name="Светошумовая граната", desc="Ослепляет противников." },
+
+    { id="arccwknadestun", result="arccwknadestun", category="granade", techLevel=1, cost=5,
+      name="Электрошоковая граната", desc="Парализует на короткое время." },
+    
+    { id="arccwknadeshock", result="arccwknadeshock", category="granade", techLevel=1, cost=5,
+      name="Шок-граната", desc="Электрический разряд по площади." },
+
+    { id="arccwknadethermite", result="arccwknadethermite", category="granade", techLevel=1, cost=5,
+      name="Термитная шашка", desc="Прожигает металл." },
+
+    { id="arccwknadeimpact", result="arccwknadeimpact", category="granade", techLevel=1, cost=5,
+      name="Импактная граната", desc="Взрывается от удара." },
+
+    { id="arccwknadedioxis", result="arccwknadedioxis", category="granade", techLevel=1, cost=5,
+      name="Граната Диоксис", desc="Граната с диоксисом." },
+
+    { id="arccwknadesequencecharger", result="arccwknadesequencecharger", category="granade", techLevel=1, cost=5,
+      name="Секвинсер", desc="Большой бабах." },
+
+    { id="arccwknadeantitankmine", result="arccwknadeantitankmine", category="granade", techLevel=1, cost=5,
+      name="Анти-танк мина", desc="Противотанковая мина." },
+
+    { id="arccwknadethermalimploder", result="arccwknadethermalimploder", category="granade", techLevel=1, cost=5,
+      name="Усиленная термальная", desc="Улучшенная термальная граната." },
+
+    { id="arccwknadeplasmagrenade", result="arccwknadeplasmagrenade", category="granade", techLevel=1, cost=5,
+      name="Плазменная граната", desc="Взрывается плазмой." },
+
+    { id="arccwknadec25", result="arccwknadec25", category="granade", techLevel=1, cost=5,
+      name="С-25", desc="С-25" },
+
+    { id="arccwknadesonar", result="arccwknadesonar", category="granade", techLevel=1, cost=5,
+      name="Сонар граната", desc="Подсвечивает врагов." },
+
+    { id="arccwknadeblaststick", result="arccwknadeblaststick", category="granade", techLevel=1, cost=5,
+      name="Бластик", desc="Просто бластик." },
+
+    { id="arccwknadedetonite", result="arccwknadedetonite", category="granade", techLevel=1, cost=5,
+      name="Детонит", desc="Прикрепляется к поверхностям." },
+
+    { id="arccwknadedecoy", result="arccwknadedecoy", category="granade", techLevel=1, cost=5,
+      name="Декой", desc="Привлекает врагов." },
 }
 
 -- ============================================================

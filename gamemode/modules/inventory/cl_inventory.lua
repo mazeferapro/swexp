@@ -158,6 +158,19 @@ function SWExp.Inventory:OpenUI()
 
     self._modelPanel = mdl
 
+    -- Применяем сохранённые бодигруппы из LocalPlayer к панели превью
+    -- ВАЖНО: функция объявлена ПОСЛЕ local mdl, иначе Lua не захватит upvalue
+    local function ApplyBGToPanel()
+        timer.Simple(0, function()
+            if not IsValid(mdl) or not IsValid(LocalPlayer()) then return end
+            local ply = LocalPlayer()
+            for _, bg in pairs(mdl.Entity:GetBodyGroups()) do
+                mdl.Entity:SetBodygroup(bg.id, ply:GetBodygroup(bg.id))
+            end
+            mdl.Entity:SetSkin(ply:GetSkin())
+        end)
+    end
+
     -- Загружаем модель без запуска анимации (тихая загрузка)
     local _lastModel = ""
     local function PreloadModel()
@@ -167,6 +180,7 @@ function SWExp.Inventory:OpenUI()
         if curModel ~= "" and curModel ~= _lastModel then
             _lastModel = curModel
             mdl:SetModel(curModel)
+            ApplyBGToPanel()
         end
     end
     PreloadModel()
@@ -192,6 +206,7 @@ function SWExp.Inventory:OpenUI()
         if curModel ~= "" and curModel ~= _lastModel then
             _lastModel = curModel
             mdl:SetModel(curModel)
+            ApplyBGToPanel()
             -- Сбрасываем позу только если панель уже видна
             if mdl:GetAlpha() > 0 then
                 invPoseTime     = CurTime()
@@ -211,6 +226,7 @@ function SWExp.Inventory:OpenUI()
         if curModel ~= "" and curModel ~= _lastModel then
             _lastModel = curModel
             mdl:SetModel(curModel)
+            ApplyBGToPanel()
             if mdl:GetAlpha() > 0 then
                 invPoseTime     = CurTime()
                 invPoseProgress = 0

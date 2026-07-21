@@ -6,15 +6,18 @@ include('shared.lua')
 
 hook.Add("SpawnMenuOpen", "SWExp::RestrictQMenu", function()
     local ply = LocalPlayer()
-    
-    -- Проверяем, есть ли у игрока права админа или суперадмина
     if not (ply:IsAdmin() or ply:IsSuperAdmin()) then
-        -- Можно раскомментировать строку ниже, чтобы выдавать сообщение об ошибке
-        -- chat.AddText(Color(255, 51, 34), "[Система] ", Color(255, 255, 255), "Доступ к Q-меню запрещен!")
-        
-        return false -- Блокируем открытие меню
+        return false
     end
-    
-    -- Разрешаем открытие для администрации
-    return true
+end)
+
+-- ============================================================
+-- Блокировка C-меню (контекстное меню) для обычных игроков
+-- ============================================================
+
+hook.Add("OnContextMenuOpen", "SWExp::RestrictCMenu", function()
+    local ply = LocalPlayer()
+    if not (ply:IsAdmin() or ply:IsSuperAdmin()) then
+        return true  -- возврат true отменяет открытие C-меню
+    end
 end)

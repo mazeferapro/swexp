@@ -139,29 +139,29 @@ function ENT:RandomSpawnPos()
         local angle = math.random() * math.pi * 2
         local dist  = math.random() * radius * 0.85
 
-        local offset = Vector(math.cos(angle) * dist, math.sin(angle) * dist, 0)
-        local start  = center + offset + Vector(0, 0, 512)
+        -- Стартуем чуть выше уровня центра зоны — внутри пространства,
+        -- а не над потолком. Иначе трейс бил по крыше снаружи и возвращал
+        -- её Z вместо нужного пола, из-за чего ноды оказывались в потолке.
+        local sx = center.x + math.cos(angle) * dist
+        local sy = center.y + math.sin(angle) * dist
+        local sz = center.z + 16
 
         local tr = util.TraceLine({
-            start  = start,
-            endpos = start - Vector(0, 0, 1200),
+            start  = Vector(sx, sy, sz),
+            endpos = Vector(sx, sy, sz - 400),
             mask   = MASK_SOLID_BRUSHONLY,
         })
 
         if tr.Hit and not tr.StartSolid then
             local dz = tr.HitPos.z - center.z
-            if dz >= -100 and dz <= radius then
+            if dz >= -200 and dz <= 64 then
                 return tr.HitPos + tr.HitNormal * 4
             end
         end
     end
 
-    local tr = util.TraceLine({
-        start  = center + Vector(0, 0, 512),
-        endpos = center - Vector(0, 0, 512),
-        mask   = MASK_SOLID_BRUSHONLY,
-    })
-    return tr.Hit and (tr.HitPos + tr.HitNormal * 4) or (center + Vector(0, 0, 4))
+    -- Fallback: прямо у центра зоны без лишнего трейса.
+    return center + Vector(0, 0, 4)
 end
 
 -- ============================================================

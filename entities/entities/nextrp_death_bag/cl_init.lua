@@ -23,9 +23,9 @@ hook.Add("PostDrawOpaqueRenderables", "SWExp::DrawDeathBagLabels", function()
         local itemCount = ent:GetNWInt("SWExp_ItemCount", 0)
         local alpha     = math.Clamp(1 - (dist / 250), 0.3, 1)
 
-        local pos = ent:GetPos() + Vector(0, 0, 14)
+        local pos = ent:GetPos() + Vector(0, 0, 25)
 
-        cam.Start3D2D(pos, Angle(0, EyeAngles().y - 90, 90), 0.09)
+        cam.Start3D2D(pos, Angle(0, EyeAngles().y - 90, 90), 0.12)
             -- Фон
             draw.RoundedBox(8, -120, -22, 240, 44,
                 Color(20, 5, 5, math.Round(210 * alpha)))

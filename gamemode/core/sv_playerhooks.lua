@@ -91,8 +91,16 @@ hook.Add('SWExp::PlayerIDRetrieved', 'SWExp::LoadCharacters', function(pPlayer, 
 
             pPlayer.SWExp_Characters = tChars
 
-            -- Открываем меню выбора персонажа
-            netstream.Start(pPlayer, 'SWExp::OpenCharSelect', pPlayer.SWExp_Characters)
+            -- Открываем меню выбора персонажа (с бодигруппами для каждого персонажа)
+            if SWExp.Wardrobe and SWExp.Wardrobe.EnrichWithBodygroups then
+                SWExp.Wardrobe.EnrichWithBodygroups(tChars, function(enriched)
+                    if IsValid(pPlayer) then
+                        netstream.Start(pPlayer, 'SWExp::OpenCharSelect', enriched)
+                    end
+                end)
+            else
+                netstream.Start(pPlayer, 'SWExp::OpenCharSelect', pPlayer.SWExp_Characters)
+            end
         end
     )
 end)
@@ -163,6 +171,22 @@ hook.Add('PlayerSpawn', 'SWExp::GiveLoadoutOnSpawn', function(pPlayer)
 end)
 
 function GM:PlayerSelectSpawn(pPlayer)
+    -- При дефибриллятор-ресе позиция игроку выставляется аддоном
+    -- (deathPos через 0.15с после Spawn), поэтому выбор точки тут
+    -- не важен — просто не падаем в дефолт.
+    if IsValid(pPlayer) and pPlayer._defibrRevive then
+        local list = (SWExp.GetPlayerSpawns and SWExp.GetPlayerSpawns()) or {}
+        if #list > 0 then return list[1] end
+        return self.BaseClass.PlayerSelectSpawn(self, pPlayer)
+    end
+
+    -- Новая система: используем swexp_player_spawn
+    if SWExp.PickRandomPlayerSpawn then
+        local sp = SWExp.PickRandomPlayerSpawn()
+        if sp then return sp end
+    end
+
+    -- Бэкап на старый класс (если где-то остался)
     local spawns = ents.FindByClass('swexp_spawn')
     if #spawns > 0 then
         return spawns[math.random(#spawns)]

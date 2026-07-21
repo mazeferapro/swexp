@@ -67,6 +67,20 @@ end
 SWUI_CreateFonts()
 hook.Add('OnScreenSizeChanged', 'SWUI::RecreateFonts', SWUI_CreateFonts)
 
+-- Пересоздаём шрифты после полной инициализации клиента и через таймер.
+-- Это нужно потому что resource.AddFile доставляет TTF-файлы во время загрузки,
+-- но Source Engine сканирует resource/fonts/ при старте игры — у новых игроков
+-- шрифты оказываются на диске уже после этого сканирования.
+-- InitPostEntity + таймер дают движку шанс подхватить файлы до следующей попытки.
+hook.Add('InitPostEntity', 'SWUI::RecreateFontsOnInit', function()
+    SWUI_CreateFonts()
+    timer.Simple(5, function()
+        if IsValid(LocalPlayer()) then
+            SWUI_CreateFonts()
+        end
+    end)
+end)
+
 -- ============================================================
 -- РИСОВАНИЕ: утилиты
 -- ============================================================

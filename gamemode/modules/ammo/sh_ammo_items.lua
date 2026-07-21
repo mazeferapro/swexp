@@ -61,7 +61,7 @@ for _, gr in ipairs(SWExp.Ammo.Grenades or {}) do
         id            = gr.key,
         name          = gr.name,
         description   = gr.desc,
-        icon          = "icon16/bomb.png",
+        icon          = gr.icon,
         width         = 1,
         height        = 1,
         slotType      = "grenade",

@@ -641,6 +641,8 @@ function SWExp.Inventory:EquipItem(pPlayer, uniqueID, slotType, slotIndex, fromS
     -- Обновляем NWBool маскировки если надели броню
     if slotType == "armor" then
         pPlayer:SetNWBool("SWExp_CloakAllowed", itemData.isAvailableCloak == true)
+        -- Уведомляем систему шкафа: броня одета, нужно переприменить бодигруппы
+        hook.Run('SWExp::ArmorEquipped', pPlayer, itemData)
     end
 
     self:SyncInventoryToClient(pPlayer)
@@ -756,6 +758,8 @@ function SWExp.Inventory:UnequipItem(pPlayer, slotType, slotIndex)
         end
         -- Сбрасываем право на маскировку при снятии брони
         pPlayer:SetNWBool("SWExp_CloakAllowed", false)
+        -- Уведомляем систему шкафа: броня снята, нужно переприменить бодигруппы
+        hook.Run('SWExp::ArmorUnequipped', pPlayer)
     elseif itemData and itemData.weaponClass then
         -- Обычный оружейный слот: снять SWEP
         pPlayer:StripWeapon(itemData.weaponClass)
@@ -797,6 +801,9 @@ function SWExp.Inventory:ApplyEquippedArmor(pPlayer)
         -- Брони нет — маскировка недоступна
         pPlayer:SetNWBool("SWExp_CloakAllowed", false)
     end
+
+    -- Уведомляем шкаф: финальная модель выставлена, применяй бодигруппы
+    hook.Run('SWExp::ArmorRestored', pPlayer)
 
     -- Восстановить оружие из всех оружейных слотов
     for slotType, slots in pairs(equip) do

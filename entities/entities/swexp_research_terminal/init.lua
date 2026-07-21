@@ -12,11 +12,11 @@ local USE_COOLDOWN = 1.0   -- секунд между открытиями дл�
 local _lastUse     = {}
 
 function ENT:Initialize()
-    self:SetModel("models/props_c17/consolebox01a.mdl")
+    self:SetModel("models/props_furniture/scifi_worktable.mdl")
     self:PhysicsInit(SOLID_VPHYSICS)
     self:SetMoveType(MOVETYPE_NONE)
     self:SetSolid(SOLID_VPHYSICS)
-    self:SetCollisionGroup(COLLISION_GROUP_WORLD)
+    self:SetCollisionGroup(COLLISION_GROUP_PLAYER)
 end
 
 -- ============================================================

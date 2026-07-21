@@ -385,7 +385,7 @@ SWExp.Inventory:RegisterItem({
     armorReduction = 0.25,
     armorClass = "engineer",
     playerModel = "models/sb_eng/sb_eng.mdl",
-    classSWEP = "fort_datapad",
+    classSWEP = {"fort_datapad", "weapon_lvsrepair"},
     isAvailableCloak = false
 })
 
@@ -404,7 +404,7 @@ SWExp.Inventory:RegisterItem({
     armorReduction = 0.30,
     armorClass = "engineer",
     playerModel = "models/sb_eng/sb_eng.mdl",
-    classSWEP = "fort_datapad",
+    classSWEP = {"fort_datapad", "weapon_lvsrepair"},
     isAvailableCloak = false
 })
 
@@ -423,7 +423,7 @@ SWExp.Inventory:RegisterItem({
     armorReduction = 0.35,
     armorClass = "engineer",
     playerModel = "models/sb_eng/sb_eng.mdl",
-    classSWEP = "fort_datapad",
+    classSWEP = {"fort_datapad", "weapon_lvsrepair"},
     isAvailableCloak = false
 })
 
@@ -442,7 +442,7 @@ SWExp.Inventory:RegisterItem({
     armorReduction = 0.40,
     armorClass = "engineer",
     playerModel = "models/sb_eng/sb_eng.mdl",
-    classSWEP = "fort_datapad",
+    classSWEP = {"fort_datapad", "weapon_lvsrepair"},
     isAvailableCloak = false
 })
 
@@ -461,7 +461,7 @@ SWExp.Inventory:RegisterItem({
     armorReduction = 0.45,
     armorClass = "engineer",
     playerModel = "models/sb_eng/sb_eng.mdl",
-    classSWEP = "fort_datapad",
+    classSWEP = {"fort_datapad", "weapon_lvsrepair"},
     isAvailableCloak = false
 })
 
@@ -566,7 +566,7 @@ SWExp.Inventory:RegisterItem({
     id          = "fort_supply",
     name        = "Строительные ресурсы",
     description = "Пакет полевых материалов для возведения фортификаций. Производится на Ассемблере.",
-    icon        = "icon16/brick.png",
+    icon        = "swexpicon/swexp-up.png",
     width       = 2,
     height      = 2,
     stackable   = true,
@@ -580,7 +580,7 @@ SWExp.Inventory:RegisterItem({
     id = "tool_flashlight",
     name = "Фонарик",
     description = "Стандартный фонарик. Экипируйте в специальный слот — тогда клавиша фонарика (F) будет работать.",
-    icon = "icon16/lightbulb.png",
+    icon = "swexpicon//swexp-flash.png",
     width = 1,
     height = 2,
     slotType = "special",
@@ -657,7 +657,7 @@ SWExp.Inventory:RegisterItem({
 SWExp.Inventory:RegisterItem({
     id = "medkit",
     name = "Аптечка",
-    description = "Постепенно восстанавливает 50 HP за 10 секунд (5 HP/сек)",
+    description = "Постепенно восстанавливает 20 HP за 10 секунд (2 HP/сек)",
     icon = "swexpicon/swexp-health.png",
     width = 2,
     height = 1,
@@ -666,9 +666,73 @@ SWExp.Inventory:RegisterItem({
     worldModel = "models/props_lab/jar001a.mdl",
     -- Параметры хила со временем (HoT)
     healType     = "hot",       -- Heal over Time
-    healPerTick  = 5,           -- HP за каждый тик
+    healPerTick  = 2,           -- HP за каждый тик
     tickInterval = 1.0,         -- Интервал между тиками (секунды)
     healDuration = 10,          -- Общая длительность (секунды) → 5 * 10 = 50 HP
+})
+
+SWExp.Inventory:RegisterItem({
+    id = "medkit_advanced",
+    name = "Улучшенная аптечка",
+    description = "Постепенно восстанавливает 40 HP за 10 секунд (4 HP/сек)",
+    icon = "swexpicon/swexp-health.png",
+    width = 2,
+    height = 2,
+    slotType = "medical",
+    rarity = "uncommon",
+    worldModel = "models/props_lab/jar001a.mdl",
+    healType     = "hot",
+    healPerTick  = 4,
+    tickInterval = 1.0,
+    healDuration = 10,
+})
+
+SWExp.Inventory:RegisterItem({
+    id = "medkit_sci",
+    name = "Научная аптечка",
+    description = "Постепенно восстанавливает 60 HP за 10 секунд (6 HP/сек)",
+    icon = "swexpicon/swexp-health.png",
+    width = 2,
+    height = 2,
+    slotType = "medical",
+    rarity = "rare",
+    worldModel = "models/props_lab/jar001a.mdl",
+    healType     = "hot",
+    healPerTick  = 6,
+    tickInterval = 1.0,
+    healDuration = 10,
+})
+
+SWExp.Inventory:RegisterItem({
+    id = "medkit_exo",
+    name = "Экзо-аптечка",
+    description = "Постепенно восстанавливает 80 HP за 10 секунд (80 HP/сек)",
+    icon = "swexpicon/swexp-health.png",
+    width = 2,
+    height = 2,
+    slotType = "medical",
+    rarity = "epic",
+    worldModel = "models/props_lab/jar001a.mdl",
+    healType     = "hot",
+    healPerTick  = 8,
+    tickInterval = 1.0,
+    healDuration = 10,
+})
+
+SWExp.Inventory:RegisterItem({
+    id = "medkit_nanit",
+    name = "Нанитная аптечка",
+    description = "Постепенно восстанавливает 100 HP за 10 секунд (10 HP/сек)",
+    icon = "swexpicon/swexp-health.png",
+    width = 2,
+    height = 2,
+    slotType = "medical",
+    rarity = "legendary",
+    worldModel = "models/props_lab/jar001a.mdl",
+    healType     = "hot",
+    healPerTick  = 10,
+    tickInterval = 1.0,
+    healDuration = 10,
 })
 
 SWExp.Inventory:RegisterItem({
@@ -690,28 +754,315 @@ SWExp.Inventory:RegisterItem({
 -- Оружие
 SWExp.Inventory:RegisterItem({
     id = "weapon_dc15a",
-    name = "DC-15A ",
+    name = "DC-15A",
     description = "",
     icon = "swexpicon/swexp-dc-15a.png",
+    width = 5,
+    height = 2,
+    slotType = "primary",
+    rarity = "uncommon",
+    worldModel = "models/weapons/w_ar2.mdl",
+    weaponClass = "arccw_k_dc15a"
+})
+
+SWExp.Inventory:RegisterItem({
+    id = "weapon_dc15ag",
+    name = "DC-15AG",
+    description = "",
+    icon = "swexpicon/swexp-dc-15ag.png",
+    width = 5,
+    height = 2,
+    slotType = "primary",
+    rarity = "rare",
+    worldModel = "models/weapons/w_ar2.mdl",
+    weaponClass = "arccw_k_dc15a_grenadier"
+})
+
+SWExp.Inventory:RegisterItem({
+    id = "weapon_dc15s",
+    name = "DC-15S",
+    description = "",
+    icon = "swexpicon/swexp-dc-15s.png",
     width = 4,
     height = 2,
     slotType = "primary",
     rarity = "common",
     worldModel = "models/weapons/w_ar2.mdl",
-    weaponClass = "weapon_ar2"
+    weaponClass = "arccw_k_dc15s"
+})
+
+SWExp.Inventory:RegisterItem({
+    id = "weapon_dc15sg",
+    name = "DC-15SG",
+    description = "",
+    icon = "swexpicon/swexp-dc-15sg.png",
+    width = 4,
+    height = 2,
+    slotType = "primary",
+    rarity = "uncommon",
+    worldModel = "models/weapons/w_ar2.mdl",
+    weaponClass = "arccw_k_dc15s_grenadier"
+})
+
+SWExp.Inventory:RegisterItem({
+    id = "weapon_dc15x",
+    name = "DC-15X",
+    description = "",
+    icon = "swexpicon/swexp-dc-15x.png",
+    width = 6,
+    height = 2,
+    slotType = "primary",
+    rarity = "uncommon",
+    worldModel = "models/weapons/w_ar2.mdl",
+    weaponClass = "arccw_k_dc15x"
+})
+
+SWExp.Inventory:RegisterItem({
+    id = "weapon_dc17",
+    name = "DC-17",
+    description = "",
+    icon = "swexpicon/swexp-dc-17.png",
+    width = 2,
+    height = 2,
+    slotType = "secondary",
+    rarity = "common",
+    worldModel = "models/weapons/w_ar2.mdl",
+    weaponClass = "arccw_k_dc17"
+})
+
+SWExp.Inventory:RegisterItem({
+    id = "weapon_dc17e",
+    name = "DC-17",
+    description = "",
+    icon = "swexpicon/swexp-dc-17.png",
+    width = 2,
+    height = 2,
+    slotType = "secondary",
+    rarity = "uncommon",
+    worldModel = "models/weapons/w_ar2.mdl",
+    weaponClass = "arccw_k_dc17ext"
+})
+
+SWExp.Inventory:RegisterItem({
+    id = "weapon_dc17de",
+    name = "DC-17 Двойные улучшенные",
+    description = "",
+    icon = "swexpicon/swexp-dc-17d.png",
+    width = 2,
+    height = 2,
+    slotType = "secondary",
+    rarity = "rare",
+    worldModel = "models/weapons/w_ar2.mdl",
+    weaponClass = "arccw_k_dc17ext_akimbo"
+})
+
+SWExp.Inventory:RegisterItem({
+    id = "weapon_dc17d",
+    name = "DC-17 Двойные",
+    description = "",
+    icon = "swexpicon/swexp-dc-17d.png",
+    width = 2,
+    height = 2,
+    slotType = "secondary",
+    rarity = "uncommon",
+    worldModel = "models/weapons/w_ar2.mdl",
+    weaponClass = "arccw_k_dc17_akimbo"
+})
+
+SWExp.Inventory:RegisterItem({
+    id = "weapon_dp23",
+    name = "DP-23",
+    description = "",
+    icon = "swexpicon/swexp-dp-23.png",
+    width = 4,
+    height = 2,
+    slotType = "primary",
+    rarity = "rare",
+    worldModel = "models/weapons/w_ar2.mdl",
+    weaponClass = "arccw_k_dp23"
+})
+
+SWExp.Inventory:RegisterItem({
+    id = "weapon_dp23c",
+    name = "DP-23C",
+    description = "",
+    icon = "swexpicon/swexp-dp-23c.png",
+    width = 4,
+    height = 2,
+    slotType = "primary",
+    rarity = "epic",
+    worldModel = "models/weapons/w_ar2.mdl",
+    weaponClass = "arccw_k_dp23c"
+})
+
+SWExp.Inventory:RegisterItem({
+    id = "weapon_dp24",
+    name = "DP-24",
+    description = "",
+    icon = "swexpicon/swexp-dp-24.png",
+    width = 4,
+    height = 2,
+    slotType = "primary",
+    rarity = "uncommon",
+    worldModel = "models/weapons/w_ar2.mdl",
+    weaponClass = "arccw_k_dp24"
+})
+
+SWExp.Inventory:RegisterItem({
+    id = "weapon_",
+    name = "DP-24C",
+    description = "",
+    icon = "swexpicon/swexp-dp-24c.png",
+    width = 4,
+    height = 2,
+    slotType = "primary",
+    rarity = "rare",
+    worldModel = "models/weapons/w_ar2.mdl",
+    weaponClass = "arccw_k_dp24c"
+})
+
+
+SWExp.Inventory:RegisterItem({
+    id = "weapon_e9",
+    name = "E-9",
+    description = "",
+    icon = "swexpicon/swexp-e9.png",
+    width = 3,
+    height = 2,
+    slotType = "primary",
+    rarity = "rare",
+    worldModel = "models/weapons/w_ar2.mdl",
+    weaponClass = "arccw_k_republic_e9"
+})
+
+SWExp.Inventory:RegisterItem({
+    id = "weapon_g125",
+    name = "G-125",
+    description = "",
+    icon = "swexpicon/swexp-g125.png",
+    width = 4,
+    height = 2,
+    slotType = "secondary",
+    rarity = "legendary",
+    worldModel = "models/weapons/w_ar2.mdl",
+    weaponClass = "arccw_k_weapon_g125"
+})
+
+SWExp.Inventory:RegisterItem({
+    id = "weapon_hh12",
+    name = "HH-12",
+    description = "",
+    icon = "swexpicon/swexp-hh12.png",
+    width = 5,
+    height = 3,
+    slotType = "heavy",
+    rarity = "rare",
+    worldModel = "models/weapons/w_ar2.mdl",
+    weaponClass = "arccw_k_launcher_hh12"
+})
+
+SWExp.Inventory:RegisterItem({
+    id = "weapon_dc15le",
+    name = "DC-15LE",
+    description = "",
+    icon = "swexpicon/swexp-dc-15le.png",
+    width = 5,
+    height = 2,
+    slotType = "primary",
+    rarity = "rare",
+    worldModel = "models/weapons/w_ar2.mdl",
+    weaponClass = "arccw_k_dc15le"
+})
+
+SWExp.Inventory:RegisterItem({
+    id = "weapon_rps6",
+    name = "RPS-6",
+    description = "",
+    icon = "swexpicon/swexp-rps-6.png",
+    width = 7,
+    height = 3,
+    slotType = "heavy",
+    rarity = "uncommon",
+    worldModel = "models/weapons/w_ar2.mdl",
+    weaponClass = "arccw_k_launcher_rps6"
+})
+
+SWExp.Inventory:RegisterItem({
+    id = "weapon_smartlauncher",
+    name = "Smart Launcher",
+    description = "",
+    icon = "swexpicon/swexp-smart-launcher.png",
+    width = 7,
+    height = 2,
+    slotType = "primary",
+    rarity = "rare",
+    worldModel = "models/weapons/w_ar2.mdl",
+    weaponClass = "arccw_k_launcher_smartlauncher"
+})
+
+SWExp.Inventory:RegisterItem({
+    id = "weapon_westarm5",
+    name = "Westarm-5",
+    description = "",
+    icon = "swexpicon/swexp-westarm5.png",
+    width = 4,
+    height = 2,
+    slotType = "primary",
+    rarity = "epic",
+    worldModel = "models/weapons/w_ar2.mdl",
+    weaponClass = "swexp-westarm5"
+})
+
+SWExp.Inventory:RegisterItem({
+    id = "weapon_antimaterial",
+    name = "K-43",
+    description = "",
+    icon = "swexpicon/swexp-anti-material.png",
+    width = 4,
+    height = 2,
+    slotType = "primary",
+    rarity = "legendary",
+    worldModel = "models/weapons/w_ar2.mdl",
+    weaponClass = "arccw_k_weapon_antimaterial"
 })
 
 SWExp.Inventory:RegisterItem({
     id = "weapon_z6",
-    name = "Z-6 Роторная пушка",
+    name = "Z-6",
     description = "Тяжёлая роторная бластерная пушка",
-    icon = "icon16/bomb.png",
+    icon = "swexpicon/swexp-z6.png",
+    width = 5,
+    height = 3,
+    slotType = "heavy",
+    rarity = "uncommon",
+    worldModel = "models/weapons/w_rpg.mdl",
+    weaponClass = "arccw_k_z6"
+})
+
+SWExp.Inventory:RegisterItem({
+    id = "weapon_z6a",
+    name = "Z-6 Улучшенная",
+    description = "Улучшенная тяжёлая роторная бластерная пушка",
+    icon = "swexpicon/swexp-z6.png",
     width = 5,
     height = 3,
     slotType = "heavy",
     rarity = "rare",
     worldModel = "models/weapons/w_rpg.mdl",
-    weaponClass = "arc9_sw_z6"
+    weaponClass = "arccw_k_z6adv"
+})
+
+SWExp.Inventory:RegisterItem({
+    id = "weapon_plx1",
+    name = "PLX-1",
+    description = "",
+    icon = "swexpicon/swexp-plx-1.png",
+    width = 8,
+    height = 3,
+    slotType = "heavy",
+    rarity = "epic",
+    worldModel = "models/weapons/w_ar2.mdl",
+    weaponClass = "arccw_k_launcher_plx1"
 })
 
 -- Материалы
@@ -719,7 +1070,7 @@ SWExp.Inventory:RegisterItem({
     id          = "mat_basic",
     name        = "Материалы",
     description = "Ресурс добычи. Сдайте на Ассемблере — поступят в общий банк отряда.",
-    icon        = "icon16/settings.png",
+    icon        = "swexpicon/swexp-settings.png",
     width       = 1,
     height      = 1,
     stackable   = true,
@@ -735,7 +1086,7 @@ SWExp.Inventory:RegisterItem({
     id          = "research_data",
     name        = "Данные исследования",
     description = "Полевые данные, собранные сканером. Сдайте на терминале исследований для пополнения банка ОИ.",
-    icon        = "icon16/battery.png",
+    icon        = "swexpicon/swexp-swexp-battery.png",
     width       = 1,
     height      = 1,
     stackable   = true,

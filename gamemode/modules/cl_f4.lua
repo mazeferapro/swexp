@@ -56,17 +56,27 @@ function SWExp.F4:ShowSplash(onContinue)
     splash:SetKeyboardInputEnabled(true)
     splash:SetAlpha(0)
     
+    local swexpBanner = Material("swexpicon/swexp-banner.png", "noclamp smooth")
+
     splash.Paint = function(s, w, h)
         surface.SetDrawColor(6, 10, 16, 255)
         surface.DrawRect(0, 0, w, h)
-        
-        SWUI.DrawText('STAR WARS: EXPEDITION', 'SWUI.MonoLarge', w / 2, h / 2 - 60, 
-            SWUI.Colors.Accent, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
-        
+
+        local srcW = swexpBanner:Width()
+        local srcH = swexpBanner:Height()
+        local maxW = w * 0.5
+        local scale = maxW / srcW
+        local bannerW = srcW * scale
+        local bannerH = srcH * scale
+        surface.SetDrawColor(255, 255, 255, 255)
+        surface.SetMaterial(swexpBanner)
+        local bannerY = h / 2 - bannerH / 2
+        surface.DrawTexturedRect(w / 2 - bannerW / 2, bannerY, bannerW, bannerH)
+
         local pulse = math.abs(math.sin(CurTime() * 2))
         local alpha = 120 + (pulse * 135)
         local col = Color(SWUI.Colors.TextHi.r, SWUI.Colors.TextHi.g, SWUI.Colors.TextHi.b, alpha)
-        SWUI.DrawText('НАЖМИТЕ ENTER ДЛЯ ПРОДОЛЖЕНИЯ', 'SWUI.Body', w / 2, h / 2 + 40, 
+        SWUI.DrawText('НАЖМИТЕ ENTER ДЛЯ ПРОДОЛЖЕНИЯ', 'SWUI.Body', w / 2, bannerY + bannerH + 30, 
             col, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
     end
     
@@ -479,9 +489,38 @@ function SWExp.F4:Open(tCharacters)
             lblNumber:SetText(char.clone_number or '')
             
             -- Обновляем модель, сбрасываем таймер и прогресс позы
-            modelIcon:SetModel(char.model or 'models/player/combine_super_soldier.mdl')
+            local _charModel = char.model or 'models/player/combine_super_soldier.mdl'
+            modelIcon:SetModel(_charModel)
             modelPoseTime     = CurTime()
             modelPoseProgress = 0
+
+            -- Применяем сохранённые бодигруппы для этого персонажа
+            -- Приоритет: char._bodygroups (из БД, пришли с сервером) → LocalPlayer() для активного
+            local _snapChar = char
+            timer.Simple(0, function()
+                if not IsValid(modelIcon) then return end
+                local bgData  = _snapChar._bodygroups
+                local skinVal = _snapChar._skin
+
+                -- Если сервер не прислал данные (старый клиент или нет настроек) —
+                -- для активного персонажа берём прямо с LocalPlayer()
+                if not bgData then
+                    local ply = IsValid(LocalPlayer()) and LocalPlayer() or nil
+                    if ply and string.lower(_charModel) == string.lower(ply:GetModel()) then
+                        for _, bg in pairs(modelIcon.Entity:GetBodyGroups()) do
+                            modelIcon.Entity:SetBodygroup(bg.id, ply:GetBodygroup(bg.id))
+                        end
+                        modelIcon.Entity:SetSkin(ply:GetSkin())
+                    end
+                    return
+                end
+
+                -- Применяем данные из БД
+                if skinVal then modelIcon.Entity:SetSkin(skinVal) end
+                for bgID, subID in pairs(bgData) do
+                    modelIcon.Entity:SetBodygroup(tonumber(bgID), tonumber(subID))
+                end
+            end)
 
             local isAct = tonumber(char.id) == nActive
             bActive = isAct
@@ -687,8 +726,65 @@ function SWExp.F4:Open(tCharacters)
         return binder
     end
 
+    local function SButtonRow(label, desc, btnLabel, onClick)
+        local row = vgui.Create('DPanel', scroll)
+        row:Dock(TOP); row:DockMargin(0, 0, 0, 6); row:SetTall(desc and 60 or 46)
+        row.Paint = function(s, w, h)
+            SWUI.DrawRoundedRect(0, 0, w, h, 8, Color(0, 0, 0, 100))
+            surface.SetDrawColor(SWUI.Colors.Border)
+            surface.DrawOutlinedRect(0, 0, w, h, 1)
+        end
+
+        local l = vgui.Create('DLabel', row)
+        l:SetPos(16, desc and 10 or 13)
+        l:SetSize(350, 20)
+        l:SetFont('SWUI.Body')
+        l:SetTextColor(SWUI.Colors.TextHi)
+        l:SetText(label)
+
+        if desc then
+            local s2 = vgui.Create('DLabel', row)
+            s2:SetPos(16, 32)
+            s2:SetSize(350, 16)
+            s2:SetFont('SWUI.Tiny')
+            s2:SetTextColor(SWUI.Colors.TextDim)
+            s2:SetText(desc)
+        end
+
+        local btn = vgui.Create('DButton', row)
+        btn:SetPos(380, (row:GetTall() - 30) / 2)
+        btn:SetSize(140, 30)
+        btn:SetText('')
+        btn.Paint = function(s, w, h)
+            local hov = s:IsHovered()
+            SWUI.DrawRoundedRect(0, 0, w, h, 6,
+                hov and Color(0, 50, 80) or Color(11, 15, 20))
+            surface.SetDrawColor(hov and SWUI.Colors.BorderHi or SWUI.Colors.Border)
+            surface.DrawOutlinedRect(0, 0, w, h, 1)
+            SWUI.DrawText(btnLabel, 'SWUI.Small', w / 2, h / 2,
+                SWUI.Colors.TextHi, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+        end
+        btn.DoClick = function()
+            if SWUI and SWUI.PlaySound then SWUI.PlaySound(SWUI.Sounds.Click, 0.5) end
+            if onClick then onClick() end
+        end
+
+        return btn
+    end
+
+    SGroup('Транспорт')
+
+    SButtonRow(
+        'Меню транспорта LVS',
+        'Открыть меню управления транспортными средствами',
+        'ОТКРЫТЬ',
+        function()
+            RunConsoleCommand('lvs_openmenu')
+        end
+    )
+
     SGroup('Звук')
-    
+
     SRow('Звуки интерфейса', 'Звуки при открытии меню и нажатии кнопок', 'ui_sounds', true, function(enabled)
         -- Обновляем глобальную переменную
         SWUI.SoundEnabled = enabled
@@ -730,7 +826,10 @@ function SWExp.F4:Open(tCharacters)
     end)
 
     SGroup('Рация и связь')
-    SKeyBindRow('Меню комлинка', 'Кнопка для открытия окна настройки частоты', 'key_comlink_menu', KEY_G)
+    SKeyBindRow('Меню комлинка',         'Открыть окно настройки трёх каналов рации',                    'key_comlink_menu',    KEY_G)
+    SKeyBindRow('Вкл / Выкл рацию',      'Быстро включить или выключить рацию без открытия меню',         'key_radio_toggle',    KEY_NONE)
+    SKeyBindRow('Вкл / Выкл микрофон',   'Замьютить или размьютить микрофон рации',                       'key_radio_mic',       KEY_NONE)
+    SKeyBindRow('Сменить канал',          'Циклически переключить активный канал (1 → 2 → 3 → 1)',         'key_radio_channel',   KEY_NONE)
 
     SGroup('Инвентарь')
     SKeyBindRow('Открыть инвентарь', 'Кнопка для открытия/закрытия инвентаря', 'key_inventory_open', KEY_I)

@@ -95,16 +95,16 @@ SWExp.ZoneConfig.MatTypes = {
         {
             name      = "Обломки техники",
             color     = Color(180, 180, 220),
-            models    = { "models/props_junk/garbage_metalcan001a.mdl", "models/props_junk/PopCan01a.mdl" },
+            models    = { "models/c24_v3/debris_010.mdl", "models/blu/flak_d5.mdl", "models/blu/carriage_d1.mdl" },
             sound     = "physics/metal/metal_box_impact_hard1.wav",
-            monologue = "Остатки чего-то механического. Вонгского? Нет — слишком примитивно. Кто-то был здесь раньше.",
+            monologue = "Остатки чего-то механического.",
         },
         {
-            name      = "Органические волокна",
+            name      = "Залежи криобрита",
             color     = Color(120, 220, 80),
-            models    = { "models/props_lab/beaker01.mdl", "models/props_lab/jar001a.mdl" },
+            models    = { "models/props_abandoned/crystals/crystal_default/crystal_cluster_wall_small_a.mdl",},
             sound     = "physics/flesh/flesh_impact_hard1.wav",
-            monologue = "Местная флора. Волокна прочнее стандартной дюрасталевой нити — и легче. Военные оценят.",
+            monologue = "Кристаллы криобрита. Промёрзшие до самой сердцевины — но ценные. Интересно, как они здесь образовались.",
         },
     },
 
@@ -170,14 +170,14 @@ SWExp.ZoneConfig.ResTypes = {
         {
             name      = "Следы присутствия",
             color     = Color(255, 200, 60),
-            models    = { "models/props_junk/garbage_metalcan001a.mdl", "models/props_junk/garbage_bag001a.mdl" },
-            monologue = "Здесь кто-то был. Недавно. Следы не наши — оборудование незнакомое. Надо зафиксировать.",
+            models    = { "models/vj_base/gibs/alien/gib1.mdl", "models/vj_base/gibs/human/gib1.mdl" },
+            monologue = "Фу какая мерзость ... ",
         },
         {
             name      = "Аномалия планеты",
             color     = Color(80, 160, 255),
-            models    = { "models/props_c17/canister01a.mdl", "models/props_combine/combine_mine01.mdl" },
-            monologue = "Сенсоры зашкаливают. Энергетическая аномалия, либо помехи — не разберу. Нужен скан.",
+            models    = { "models/bananakin/rp_arquitens_cruiser_bana/sims_crystal_fixed.mdl",},
+            monologue = "Сенсоры зашкаливают. Энергетическая аномалия, либо помехи — не разберу. ",
         },
     },
 

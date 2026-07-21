@@ -4,7 +4,7 @@ AddCSLuaFile( 'shared.lua' )
 include('shared.lua')
  
 function ENT:Initialize()
-	self:SetModel('models/props_c17/oildrum001.mdl')
+	self:SetModel('models/eemyscifipack/props/tech/scifi_terminal.mdl')
 	self:SetHullType( HULL_HUMAN )
 	self:SetHullSizeNormal()
 	self:SetSolid( SOLID_BBOX )

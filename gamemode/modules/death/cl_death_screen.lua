@@ -41,6 +41,12 @@ end
 
 CreateFonts()
 hook.Add('OnScreenSizeChanged', 'SWExp::Death::RecreateFonts', CreateFonts)
+hook.Add('InitPostEntity', 'SWExp::Death::RecreateFontsOnInit', function()
+    CreateFonts()
+    timer.Simple(5, function()
+        if IsValid(LocalPlayer()) then CreateFonts() end
+    end)
+end)
 
 -- ============================================================
 -- Config fallback

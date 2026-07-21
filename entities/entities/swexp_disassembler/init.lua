@@ -12,11 +12,11 @@ local USE_COOLDOWN = 1.0  -- секунд между открытиями для
 local _lastUse     = {}
 
 function ENT:Initialize()
-    self:SetModel("models/props_c17/oildrum001.mdl")
+    self:SetModel("models/eemyscifipack/props/tech/scifi_terminal.mdl")
     self:PhysicsInit(SOLID_VPHYSICS)
     self:SetMoveType(MOVETYPE_NONE)
     self:SetSolid(SOLID_VPHYSICS)
-    self:SetCollisionGroup(COLLISION_GROUP_WORLD)
+    self:SetCollisionGroup(COLLISION_GROUP_PLAYER)
 
     local phys = self:GetPhysicsObject()
     if IsValid(phys) then phys:EnableMotion(false) end

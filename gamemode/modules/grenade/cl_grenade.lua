@@ -146,15 +146,26 @@ local HUD_GAP    = 6
 local HUD_MARGIN_X = 24
 local HUD_MARGIN_Y = 180   -- было ~110 — поднимаем над патронами
 
-surface.CreateFont("SWExpGrenadeKey", {
-    font = "Exo 2", size = 14, weight = 700, antialias = true, extended = true,
-})
-surface.CreateFont("SWExpGrenadeName", {
-    font = "Exo 2", size = 13, weight = 500, antialias = true, extended = true,
-})
-surface.CreateFont("SWExpGrenadeNum", {
-    font = "Exo 2", size = 18, weight = 800, antialias = true, extended = true,
-})
+local function CreateGrenadeFonts()
+    surface.CreateFont("SWExpGrenadeKey", {
+        font = "Exo 2", size = 14, weight = 700, antialias = true, extended = true,
+    })
+    surface.CreateFont("SWExpGrenadeName", {
+        font = "Exo 2", size = 13, weight = 500, antialias = true, extended = true,
+    })
+    surface.CreateFont("SWExpGrenadeNum", {
+        font = "Exo 2", size = 18, weight = 800, antialias = true, extended = true,
+    })
+end
+
+CreateGrenadeFonts()
+hook.Add('OnScreenSizeChanged', 'SWExp::Grenade::RecreateFonts', CreateGrenadeFonts)
+hook.Add('InitPostEntity', 'SWExp::Grenade::RecreateFontsOnInit', function()
+    CreateGrenadeFonts()
+    timer.Simple(5, function()
+        if IsValid(LocalPlayer()) then CreateGrenadeFonts() end
+    end)
+end)
 
 local KEY_NAMES = {}
 local function KeyDisplay(keyCode)

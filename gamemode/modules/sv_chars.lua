@@ -263,6 +263,14 @@ function SWExp.Chars:Choose(pPlayer, nCharID, cb)
         end
     end
 
+    -- Хук СМЕНЫ персонажа — даём подписчикам шанс сохранить состояние
+    -- старого персонажа (позиция, тир и т.п.) ДО подмены ActiveChar.
+    -- Игрок ещё жив и на своей текущей позиции.
+    local oldChar = pPlayer.SWExp_ActiveChar
+    if oldChar and tonumber(oldChar.id) ~= tonumber(char.id) then
+        hook.Run('SWExp::CharacterSwitching', pPlayer, oldChar, char)
+    end
+
     pPlayer.SWExp_ActiveChar = char
 
     local mdl = char.model or DEFAULT_MODEL -- Теперь подтягиваем сохраненную
@@ -315,12 +323,26 @@ function SWExp.Chars:GetByID(pPlayer, nCharID)
     return nil
 end
 
--- Netstream хуки оставлены без изменений
+-- Вспомогательная функция: обогащает список персонажей бодигруппами и отправляет клиенту
+local function SendCharSelect(pPlayer, tChars)
+    if not IsValid(pPlayer) then return end
+    -- SWExp.Wardrobe загружается позже, поэтому проверяем наличие функции
+    if SWExp.Wardrobe and SWExp.Wardrobe.EnrichWithBodygroups then
+        SWExp.Wardrobe.EnrichWithBodygroups(tChars, function(enriched)
+            if IsValid(pPlayer) then
+                netstream.Start(pPlayer, 'SWExp::OpenCharSelect', enriched)
+            end
+        end)
+    else
+        netstream.Start(pPlayer, 'SWExp::OpenCharSelect', tChars)
+    end
+end
+
 netstream.Hook('SWExp::CreateChar', function(pPlayer, tData)
     if not IsValid(pPlayer) then return end
     if not istable(tData) then return end
     SWExp.Chars:Create(pPlayer, tData.clone_number, tData.callsign, function(bOk, result)
-        if bOk then netstream.Start(pPlayer, 'SWExp::OpenCharSelect', pPlayer.SWExp_Characters)
+        if bOk then SendCharSelect(pPlayer, pPlayer.SWExp_Characters)
         else netstream.Start(pPlayer, 'SWExp::CharError', result) end
     end)
 end)
@@ -333,7 +355,7 @@ end)
 netstream.Hook('SWExp::DeleteChar', function(pPlayer, nCharID)
     if not IsValid(pPlayer) then return end
     SWExp.Chars:Delete(pPlayer, nCharID, function(bOk, err)
-        if bOk then netstream.Start(pPlayer, 'SWExp::OpenCharSelect', pPlayer.SWExp_Characters)
+        if bOk then SendCharSelect(pPlayer, pPlayer.SWExp_Characters)
         else netstream.Start(pPlayer, 'SWExp::CharError', err) end
     end)
 end)
@@ -341,7 +363,7 @@ end)
 netstream.Hook('SWExp::RenameChar', function(pPlayer, nCharID, sCallsign)
     if not IsValid(pPlayer) then return end
     SWExp.Chars:Rename(pPlayer, nCharID, sCallsign, function(bOk, result)
-        if bOk then netstream.Start(pPlayer, 'SWExp::OpenCharSelect', pPlayer.SWExp_Characters)
+        if bOk then SendCharSelect(pPlayer, pPlayer.SWExp_Characters)
         else netstream.Start(pPlayer, 'SWExp::CharError', result) end
     end)
 end)
@@ -349,7 +371,7 @@ end)
 netstream.Hook('SWExp::RequestChars', function(pPlayer)
     if not IsValid(pPlayer) then return end
     SWExp.Chars:Load(pPlayer, function(tChars)
-        netstream.Start(pPlayer, 'SWExp::OpenCharSelect', tChars)
+        SendCharSelect(pPlayer, tChars)
     end)
 end)
 
@@ -409,18 +431,8 @@ hook.Add('PlayerSay', 'SWExp::ChatName', function(ply, text, teamChat)
     end
 
     MsgC(Color(255, 200, 0), '[SWExp][ChatName] ', color_white,
-        string.format('  -> sent ChatPrint to %d players, returning ""\n',
-            recipientCount))
+                string.format('  -> sent ChatPrint to %d players\n', recipientCount))
 
+    -- Подавляем стандартный чат — мы уже разослали кастомным ChatPrint.
     return ''
-end)
-
-hook.Add('PlayerInitialSpawn', 'SWExp::SyncDisplayName', function(ply)
-    timer.Simple(1, function()
-        if IsValid(ply) and ply.SWExp_DisplayName then ply:SetNWString('SWExp_Nick', ply.SWExp_DisplayName) end
-    end)
-end)
-
-hook.Add('SWExp::CharacterSelected', 'SWExp::UpdateDisplayNameNW', function(ply, char)
-    if IsValid(ply) and ply.SWExp_DisplayName then ply:SetNWString('SWExp_Nick', ply.SWExp_DisplayName) end
 end)

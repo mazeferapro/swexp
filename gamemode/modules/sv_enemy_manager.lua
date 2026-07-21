@@ -237,22 +237,106 @@ local function OnPlayerExitSafezone(pool)
 end
 
 -- ============================================================
--- ВЫБОР ТОЧКИ СПАВНА
+-- ВЫБОР ТОЧКИ СПАВНА (navmesh-based)
 -- ============================================================
+
+-- Глобальный кэш всех nav-зон карты (строится один раз).
+local _navAllAreas = nil
+
+local function GetAllNavAreas()
+    if _navAllAreas then return _navAllAreas end
+    if not navmesh or not navmesh.GetAllNavAreas then
+        _navAllAreas = {}
+        return _navAllAreas
+    end
+    _navAllAreas = navmesh.GetAllNavAreas() or {}
+    print(string.format("[SWExp] Nav cache: %d зон загружено.", #_navAllAreas))
+    return _navAllAreas
+end
+
+hook.Add("PostCleanupMap", "SWExp::EnemyMgr_NavCacheReset", function()
+    _navAllAreas = nil
+end)
+
+-- Кэш кандидатов на пул: пересчитывается раз в N секунд
+-- или когда игрок переместился дальше порога.
+local NAV_CAND_LIFETIME  = 8    -- секунды жизни кэша кандидатов
+local NAV_CAND_MOVE_DIST = 300  -- пересчёт если игрок сдвинулся дальше (u)
+
+local function GetPoolCandidates(pool, plyPos, plyFloorZ, minD, maxD)
+    local now = CurTime()
+    local pc  = pool._navCandCache
+
+    -- Кэш ещё актуален?
+    if pc and (now - pc.builtAt) < NAV_CAND_LIFETIME then
+        if pc.plyPos:DistToSqr(plyPos) < NAV_CAND_MOVE_DIST ^ 2 then
+            return pc.list
+        end
+    end
+
+    -- Перестраиваем список кандидатов.
+    local allAreas = GetAllNavAreas()
+    local minD2    = minD * minD
+    local maxD2    = maxD * maxD
+    local list     = {}
+
+    for _, area in ipairs(allAreas) do
+        if not IsValid(area) then continue end
+        local ac = area:GetCenter()
+        local dx = ac.x - plyPos.x
+        local dy = ac.y - plyPos.y
+        local d2 = dx * dx + dy * dy
+        if d2 < minD2 or d2 > maxD2 then continue end
+        -- Вертикально: центр зоны ≤ 150 u от пола игрока.
+        if math.abs(ac.z - plyFloorZ) > 150 then continue end
+        table.insert(list, area)
+    end
+
+    pool._navCandCache = {
+        list    = list,
+        builtAt = now,
+        plyPos  = Vector(plyPos.x, plyPos.y, plyPos.z),
+    }
+    Verbose(string.format("Nav candidates: %d зон (из %d) для %s",
+        #list, #allAreas, IsValid(pool.ply) and pool.ply:Nick() or "?"))
+    return list
+end
 
 local function TryFindSpawnPoint(pool)
     if not IsValid(pool.ply) then return nil end
     local c = Cfg()
     if not c then return nil end
 
-    local sys       = c.System
-    local plyPos    = pool.ply:GetPos()
-    local minD      = sys.spawnMinDist
-    local maxD      = sys.spawnMaxDist
-    local maxTries  = sys.spawnMaxTries
-    local szBuf     = sys.safezoneBuffer
+    local sys      = c.System
+    local plyPos   = pool.ply:GetPos()
+    local minD     = sys.spawnMinDist
+    local maxD     = sys.spawnMaxDist
+    local maxTries = sys.spawnMaxTries
+    local szBuf    = sys.safezoneBuffer
 
-    -- Список всех живых игроков для LOS-фильтра
+    -- Нет navmesh → не спавним (лучше пропустить, чем спавнить в текстурах).
+    local allAreas = GetAllNavAreas()
+    if #allAreas == 0 then
+        Verbose("Нет navmesh на карте — спавн пропущен.")
+        return nil
+    end
+
+    -- Реальный пол под игроком.
+    local plyFloorTr = util.TraceLine({
+        start  = plyPos + Vector(0, 0, 4),
+        endpos = plyPos - Vector(0, 0, 128),
+        mask   = MASK_SOLID_BRUSHONLY,
+    })
+    local plyFloorZ = plyFloorTr.Hit and plyFloorTr.HitPos.z or plyPos.z
+
+    -- Кандидаты (из кэша — O(1) при повторных вызовах).
+    local candidates = GetPoolCandidates(pool, plyPos, plyFloorZ, minD, maxD)
+    if #candidates == 0 then
+        Verbose("Нет nav-кандидатов в радиусе.")
+        return nil
+    end
+
+    -- Список всех живых игроков для LOS-фильтра.
     local viewers = {}
     for _, pl in ipairs(player.GetAll()) do
         if IsValid(pl) and pl:Alive() then
@@ -261,56 +345,49 @@ local function TryFindSpawnPoint(pool)
     end
 
     for _ = 1, maxTries do
-        -- Случайная точка в кольце
-        local ang    = math.Rand(0, math.pi * 2)
-        local dist   = math.Rand(minD, maxD)
-        local cand   = plyPos + Vector(math.cos(ang) * dist, math.sin(ang) * dist, 0)
+        local area = candidates[math.random(#candidates)]
+        if not IsValid(area) then continue end
 
-        -- Ищем пол: трейс вниз
-        local tr = util.TraceLine({
-            start  = cand + Vector(0, 0, 500),
-            endpos = cand - Vector(0, 0, 3000),
+        local pos = area:GetRandomPoint()
+        pos = pos + Vector(0, 0, 2)
+
+        -- ── 1. Safezone ─────────────────────────────────────────────
+        if SWExp.IsInSafezone and SWExp.IsInSafezone(pos, szBuf) then continue end
+
+        -- ── 2. PointContents — не внутри solid-кисти ────────────────
+        local inSolid = false
+        for _, dz in ipairs({ 2, 24, 48, 70 }) do
+            if bit.band(util.PointContents(pos + Vector(0, 0, dz)), CONTENTS_SOLID) ~= 0 then
+                inSolid = true; break
+            end
+        end
+        if inSolid then continue end
+
+        -- ── 3. Просвет 76 u вверх — NPC должен поместиться ──────────
+        local ceilTr = util.TraceLine({
+            start  = pos,
+            endpos = pos + Vector(0, 0, 76),
             mask   = MASK_SOLID_BRUSHONLY,
         })
-        if not tr.Hit then continue end
-        cand = tr.HitPos + Vector(0, 0, 16)
+        if ceilTr.Hit then continue end
 
-        -- Проверка: не в safezone + буфер
-        if SWExp.IsInSafezone and SWExp.IsInSafezone(cand, szBuf) then
-            continue
-        end
-
-        -- LOS-фильтр: ни один игрок не должен видеть точку
+        -- ── 4. LOS-фильтр — вне поля зрения всех игроков ────────────
         local seen = false
         for _, pl in ipairs(viewers) do
-            local plEye = pl:EyePos()
             local los = util.TraceLine({
-                start  = plEye,
-                endpos = cand + Vector(0, 0, 40),
+                start  = pl:EyePos(),
+                endpos = pos + Vector(0, 0, 40),
                 mask   = MASK_OPAQUE,
                 filter = pl,
             })
-            if los.Fraction >= 0.99 then
-                seen = true
-                break
-            end
+            if los.Fraction >= 0.99 then seen = true; break end
         end
         if seen then continue end
 
-        -- Проверка что точка в пределах мира
-        if not util.IsInWorld(cand) then continue end
+        -- ── 5. В пределах мира ───────────────────────────────────────
+        if not util.IsInWorld(pos) then continue end
 
-        -- Навмеш-валидация (если есть)
-        if navmesh and navmesh.GetNearestNavArea then
-            local area = navmesh.GetNearestNavArea(cand, false, 200, false, true, -2)
-            -- Если навмеша нет совсем — разрешаем (фолбэк на обычную проверку)
-            -- Если есть, но area не нашлась близко — пропускаем
-            if navmesh.GetNavAreaCount and navmesh.GetNavAreaCount() > 0 then
-                if not area or not IsValid(area) then continue end
-            end
-        end
-
-        return cand
+        return pos
     end
 
     return nil
@@ -372,6 +449,24 @@ local function ActuallySpawnEnemy(pool, tier, pos)
     npc:Activate()
 
     if not IsValid(npc) then return end
+
+    -- Пост-спавн проверка: NPC не должен находиться внутри геометрии.
+    -- После Activate() физдвижок мог сдвинуть энтити — проверяем
+    -- реальную позицию через PointContents (надёжнее нулевого TraceHull).
+    local spawnedPos = npc:GetPos()
+    local postStuck = false
+    for _, dz in ipairs({ 2, 24, 48, 70 }) do
+        local contents = util.PointContents(spawnedPos + Vector(0, 0, dz))
+        if bit.band(contents, CONTENTS_SOLID) ~= 0 then
+            postStuck = true; break
+        end
+    end
+    if postStuck then
+        Verbose(string.format("Post-spawn stuck check failed for %s at (%d,%d,%d) — removed",
+            class, spawnedPos.x, spawnedPos.y, spawnedPos.z))
+        npc:Remove()
+        return
+    end
 
     ApplyEnemyConfig(npc, tcfg, pool)
 
@@ -456,6 +551,18 @@ local function UpdatePool(pool, dt)
     end
 
     if pool.isInSafezone or pool.tier <= 0 then
+        -- Защитный фикс: isInSafezone=true, но тир почему-то ненулевой
+        -- (например, SetThreatTier вызвали снаружи после OnPlayerEnterSafezone).
+        -- Принудительно обнуляем, чтобы клиент видел правильный тир.
+        if pool.isInSafezone and pool.tier ~= 0 then
+            pool.tier = 0
+            pool.noise = 0
+            if IsValid(pool.ply) then
+                pool.ply:SetNWInt("SWExp_ThreatTier", 0)
+                SendNoiseToPlayer(pool, true)
+            end
+        end
+
         -- Нет активной угрозы — только шум затухает на 0 (в safezone) либо обычно
         local decay = c.Noise.decayPerSecond * dt
         if pool.isInSafezone then decay = decay * 5 end
@@ -642,13 +749,19 @@ timer.Create("SWExp::EnemyMgr_VehicleNoise", 1, 0, function()
     end
 end)
 
--- Смерть игрока → сброс тира на 1, пул очищается
+-- Смерть игрока → сохраняем pre-death тир и шум (для дефибриллятора),
+-- затем сбрасываем пул и счётчики.
 hook.Add("PlayerDeath", "SWExp::EnemyMgr_PlayerDeath", function(victim)
     if not IsValid(victim) then return end
     local sid = victim:SteamID64()
     if not sid then return end
     local p = Mgr.Pools[sid]
     if p then
+        -- Сохраняем состояние для возможного дефибриллятор-реса.
+        -- PlayerSpawn ниже прочитает _defibrRevive и восстановит.
+        p._preDeathTier  = p.tier or 0
+        p._preDeathNoise = p.noise or 0
+
         p.tier     = 0
         p.lastTier = 0
         p.noise    = 0
@@ -668,15 +781,37 @@ hook.Add("PlayerDeath", "SWExp::EnemyMgr_PlayerDeath", function(victim)
     end
 end)
 
--- Респавн → Сброс на 1 (как мы договаривались — последний тир = 1 если нет сохранённого)
+-- Респавн:
+--   • дефибриллятор (ply._defibrRevive == true) — восстанавливаем
+--     pre-death тир и шум. Локация ставится самим аддоном (deathPos
+--     через 0.15с после Spawn) → тир соответствует месту реса.
+--   • обычный респавн — сброс на тир 1, шум 0; локация — точка спавна
+--     (см. swexp_player_spawn / GM:PlayerSelectSpawn).
 hook.Add("PlayerSpawn", "SWExp::EnemyMgr_PlayerSpawn", function(ply)
     if not IsValid(ply) then return end
     local p = GetOrCreatePool(ply)
     if not p then return end
-    -- Дефолтный тир = 1 (первая зона). Safezone сбросит до 0 если игрок там.
+
+    if ply._defibrRevive then
+        local restoreTier = p._preDeathTier or 1
+        if restoreTier < 1 then restoreTier = 1 end
+        p.tier     = restoreTier
+        p.lastTier = restoreTier
+        p.noise    = p._preDeathNoise or 0
+        p._preDeathTier  = nil
+        p._preDeathNoise = nil
+        ply:SetNWInt("SWExp_ThreatTier", p.tier)
+        SendNoiseToPlayer(p, true)
+        return
+    end
+
+    -- Дефолтный тир = 1 (первая зона). Safezone-проверка ниже в Update
+    -- сбросит до 0, если игрок появился внутри хаба.
     p.tier     = 1
     p.lastTier = 1
     p.noise    = 0
+    p._preDeathTier  = nil
+    p._preDeathNoise = nil
     ply:SetNWInt("SWExp_ThreatTier", 1)
     SendNoiseToPlayer(p, true)
 end)
@@ -700,11 +835,24 @@ hook.Add("SWExp::PlayerFullLoad", "SWExp::EnemyMgr_FullLoad", function(ply)
     SendNoiseToPlayer(p, true)
 end)
 
--- Disconnect → чистка пула
+-- Disconnect → чистка пула.
+-- ВАЖНО: перед удалением пула кэшируем тир на игроке, чтобы
+-- sv_spawn_location.lua мог корректно сохранить его в БД,
+-- даже если его PlayerDisconnected-хук выполнится после нашего.
+-- (порядок hook.Add хуков в GMod не гарантирован — pairs не упорядочен)
 hook.Add("PlayerDisconnected", "SWExp::EnemyMgr_Disconnect", function(ply)
     if not IsValid(ply) then return end
     local sid = ply:SteamID64()
-    if sid then RemovePool(sid) end
+    if not sid then return end
+    local p = Mgr.Pools[sid]
+    if p then
+        -- В safezone tier=0, но lastTier хранит реальное значение.
+        local effective = (p.tier and p.tier > 0) and p.tier
+            or (p.lastTier and p.lastTier > 0) and p.lastTier
+            or 1
+        ply.SWExp_DisconnectTier = effective
+    end
+    RemovePool(sid)
 end)
 
 -- ============================================================

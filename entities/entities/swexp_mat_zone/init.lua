@@ -142,34 +142,34 @@ function ENT:RandomSpawnPos()
     local radius = self._radius
 
     for _ = 1, 20 do
-        -- Равномерное распределение по кругу без sqrt-перекоса к краям
         local angle = math.random() * math.pi * 2
-        local dist  = math.random() * radius * 0.85   -- не дальше 85% радиуса
+        local dist  = math.random() * radius * 0.85
 
-        local offset = Vector(math.cos(angle) * dist, math.sin(angle) * dist, 0)
-        local start  = center + offset + Vector(0, 0, 512)  -- стартуем высоко над точкой
+        -- Стартуем чуть выше уровня центра зоны по Z (НЕ над потолком!).
+        -- Старый код стартовал с center.z+512, что выше потолка любой
+        -- комнаты — трейс бил по верхней поверхности потолка и возвращал
+        -- его Z вместо пола, из-за чего ноды спавнились в потолке/крыше.
+        local sx = center.x + math.cos(angle) * dist
+        local sy = center.y + math.sin(angle) * dist
+        local sz = center.z + 16   -- стартуем чуть выше центра, внутри пространства
 
         local tr = util.TraceLine({
-            start  = start,
-            endpos = start - Vector(0, 0, 1200),
+            start  = Vector(sx, sy, sz),
+            endpos = Vector(sx, sy, sz - 400),   -- ищем пол не глубже 400 u вниз
             mask   = MASK_SOLID_BRUSHONLY,
         })
 
         if tr.Hit and not tr.StartSolid then
             local dz = tr.HitPos.z - center.z
-            if dz >= -100 and dz <= radius then
+            if dz >= -200 and dz <= 64 then   -- пол ≤ 200 u ниже или ≤ 64 u выше центра
                 return tr.HitPos + tr.HitNormal * 4
             end
         end
     end
 
-    -- Fallback: прямо над центром зоны
-    local tr = util.TraceLine({
-        start  = center + Vector(0, 0, 512),
-        endpos = center - Vector(0, 0, 512),
-        mask   = MASK_SOLID_BRUSHONLY,
-    })
-    return tr.Hit and (tr.HitPos + tr.HitNormal * 4) or (center + Vector(0, 0, 4))
+    -- Fallback: возвращаем позицию прямо у центра зоны.
+    -- Не делаем трейс вверх/вниз: он тоже мог пробивать потолок.
+    return center + Vector(0, 0, 4)
 end
 
 -- ============================================================
