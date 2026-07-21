@@ -190,9 +190,12 @@ function ENT:SpawnCycle()
     if not IsValid(self) then return end
     self:CleanupLists()
 
-    local need = self._maxRes - #self._resPoints
-    for _ = 1, need do
-        self:SpawnResPoint()
+    -- Заполняем зону только если она полностью пуста (начальный спавн / после ApplySettings / safety net).
+    -- Обычный респавн после использования идёт через OnNodeDepleted с точной задержкой self._respawn.
+    if #self._resPoints == 0 then
+        for _ = 1, self._maxRes do
+            self:SpawnResPoint()
+        end
     end
 
     timer.Create("SWExp::ResZone_" .. self:EntIndex(), self._respawn, 1, function()
@@ -206,7 +209,10 @@ end
 
 function ENT:OnNodeDepleted(node)
     self:CleanupLists()
-    timer.Simple(math.random(15, 30), function()
+    -- Респавн отдельной истощённой точки происходит ровно через заданное время self._respawn
+    -- (настраивается в меню зоны по E).
+    local delay = math.max(10, self._respawn)
+    timer.Simple(delay, function()
         if not IsValid(self) then return end
         self:CleanupLists()
         if #self._resPoints < self._maxRes then

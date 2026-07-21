@@ -35,6 +35,7 @@ SWExp.Net.DefaultCooldowns = SWExp.Net.DefaultCooldowns or {
     Assembler_DepositReq    = 0.75,
     Assembler_CraftReq      = 0.50,
     Assembler_SetLimit      = 0.50,
+    Assembler_RefreshMyUsage = 8,
     Research_DepositRequest = 0.75,
     -- Portal
     PortalUse               = 0.50,

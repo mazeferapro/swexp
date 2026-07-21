@@ -6,6 +6,7 @@ resource.AddFile('resource/fonts/Exo2-Bold.ttf')
 resource.AddFile('resource/fonts/Exo2-SemiBold.ttf')
 
 include('shared.lua')
+include('modules/sv_trademc.lua')
 
 DEFINE_BASECLASS('gamemode_sandbox')
 GM.Sandbox = BaseClass

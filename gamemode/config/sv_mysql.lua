@@ -1,9 +1,9 @@
 -- config/sv_mysql.lua
 MySQLite.initialize({
     EnableMySQL      = true,
-    Host             = 'localhost',
-    Username         = 'root',
-    Password         = '110420041',
+    Host             = '127.0.0.1',
+    Username         = 'gmodserver',
+    Password         = '1)8n$DA>krg4',
     Database_name    = 'swexp',
     Database_port    = 3306,
     Preferred_module = 'mysqloo',

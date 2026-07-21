@@ -11,11 +11,60 @@ if not CLIENT then return end
 SWUI.Animated = SWUI.Animated or {}
 
 -- ============================================================
+-- BACKDROP + РЕЕСТР ОКОН — закрытие по клику вне окна
+-- ============================================================
+--
+-- Принцип работы:
+--   Когда открывается хотя бы одно окно, создаётся прозрачная
+--   полноэкранная DPanel (backdrop). Popup-окна рисуются поверх
+--   обычных панелей, поэтому клик по окну поглощается окном, а клик
+--   по пустому месту достигает backdrop → все окна закрываются.
+--   При закрытии последнего окна backdrop удаляется.
+
+SWUI.Animated._Windows  = SWUI.Animated._Windows  or {}
+SWUI.Animated._Backdrop = SWUI.Animated._Backdrop  -- может быть nil
+
+local function _RefreshBackdrop()
+    local hasWindows = next(SWUI.Animated._Windows) ~= nil
+
+    if hasWindows then
+        -- Создаём backdrop если его ещё нет
+        if not IsValid(SWUI.Animated._Backdrop) then
+            local bd = vgui.Create("DPanel")
+            bd:SetPos(0, 0)
+            bd:SetSize(ScrW(), ScrH())
+            bd:SetMouseInputEnabled(true)
+            bd.Paint = function() end  -- полностью прозрачный
+
+            bd.OnMousePressed = function(_, btn)
+                if btn ~= MOUSE_LEFT then return end
+                -- Закрываем все зарегистрированные окна
+                for win in pairs(SWUI.Animated._Windows) do
+                    if IsValid(win) then win:Close() end
+                end
+            end
+
+            SWUI.Animated._Backdrop = bd
+        end
+    else
+        -- Все окна закрыты — убираем backdrop
+        if IsValid(SWUI.Animated._Backdrop) then
+            SWUI.Animated._Backdrop:Remove()
+        end
+        SWUI.Animated._Backdrop = nil
+    end
+end
+
+-- ============================================================
 -- ANIMATED WINDOW — окно с анимацией появления/закрытия
 -- ============================================================
 
 function SWUI.Animated.CreateWindow(title, w, h, parent, accentColor)
     local window, content = SWUI.CreateWindow(title, w, h, parent, accentColor)
+
+    -- Регистрируем окно и при необходимости создаём backdrop
+    SWUI.Animated._Windows[window] = true
+    _RefreshBackdrop()
 
     -- Применяем анимацию появления
     SWUI.Animations.Presets.WindowOpen(window, 0.35)
@@ -23,11 +72,22 @@ function SWUI.Animated.CreateWindow(title, w, h, parent, accentColor)
     -- Переопределяем Close с анимацией
     local originalClose = window.Close
     window.Close = function(self)
+        -- Убираем из реестра ДО анимации — повторный клик не вызовет Close снова
+        SWUI.Animated._Windows[self] = nil
+        _RefreshBackdrop()
         SWUI.Animations.Presets.WindowClose(self, 0.25, function()
             if IsValid(self) then
                 if originalClose then originalClose(self) end
             end
         end)
+    end
+
+    -- Страховка: если окно удалили напрямую через :Remove()
+    local origOnRemove = window.OnRemove
+    window.OnRemove = function(self)
+        SWUI.Animated._Windows[self] = nil
+        _RefreshBackdrop()
+        if origOnRemove then origOnRemove(self) end
     end
 
     -- Возвращаем оба значения как SWUI.CreateWindow

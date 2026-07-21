@@ -30,16 +30,16 @@ SWExp.ResearchConfig.TechLevels = {
         name         = "Уровень III: Систематизация",
     },
     [4] = {
-        rp_threshold = 3000,
+        rp_threshold = 4500,
         name         = "Уровень IV: Технологический прорыв",
     },
     [5] = {
-        rp_threshold = 5500,
+        rp_threshold = 6500,
         name         = "Уровень V: Мастерство",
     },
     -- Уровень 6 — Финал: гипердрайв починен, конец сезона
     [6] = {
-        rp_threshold = 9500,
+        rp_threshold = 11500,
         name         = "ФИНАЛ: Гипердрайв восстановлен",
         isFinal      = true,
     },

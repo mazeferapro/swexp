@@ -142,7 +142,7 @@ end
 function SCOREBOARD:CreateTabs()
     local tabs = vgui.Create('DPanel', self.Window)
     tabs:Dock(TOP)
-    tabs:DockMargin(2, 0, 2, 0)  -- Отступы по бокам
+    tabs:DockMargin(2, 0, 2, 0)
     tabs:SetTall(38)
 
     tabs.Paint = function(pnl, w, h)
@@ -151,6 +151,7 @@ function SCOREBOARD:CreateTabs()
         surface.DrawLine(0, h - 1, w, h - 1)
     end
 
+    -- Вкладка ИГРОКИ
     local tab = vgui.Create('DButton', tabs)
     tab:SetPos(0, 0)
     tab:SetSize(120, 38)
@@ -159,12 +160,40 @@ function SCOREBOARD:CreateTabs()
     tab.Paint = function(pnl, w, h)
         surface.SetDrawColor(SWUI.Colors.Accent.r, SWUI.Colors.Accent.g, SWUI.Colors.Accent.b, 10)
         surface.DrawRect(0, 0, w, h)
-        
         surface.SetDrawColor(SWUI.Colors.Accent)
         surface.DrawLine(0, h - 2, w, h - 2)
         surface.DrawLine(0, h - 1, w, h - 1)
-
         draw.SimpleText('ИГРОКИ', 'SWUI.Small', w / 2, h / 2, SWUI.Colors.Accent, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+    end
+
+    -- Кнопка открытия донат-магазина
+    local GOLD_TAB = Color(255, 196, 40)
+    local donateTab = vgui.Create('DButton', tabs)
+    donateTab:SetPos(122, 0)
+    donateTab:SetSize(130, 38)
+    donateTab:SetText('')
+    donateTab:SetCursor('hand')
+
+    donateTab.Paint = function(pnl, w, h)
+        local hov = pnl:IsHovered()
+        surface.SetDrawColor(GOLD_TAB.r, GOLD_TAB.g, GOLD_TAB.b, hov and 22 or 8)
+        surface.DrawRect(0, 0, w, h)
+        if hov then
+            surface.SetDrawColor(GOLD_TAB.r, GOLD_TAB.g, GOLD_TAB.b, 200)
+            surface.DrawLine(0, h - 2, w, h - 2)
+            surface.DrawLine(0, h - 1, w, h - 1)
+        end
+        local col = hov and GOLD_TAB or Color(GOLD_TAB.r, GOLD_TAB.g, GOLD_TAB.b, 150)
+        draw.SimpleText('◉ ДОНАТ', 'SWUI.Small', w / 2, h / 2, col, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+    end
+
+    donateTab.DoClick = function()
+        SCOREBOARD:Hide()
+        timer.Simple(0.3, function()
+            if SWExp.DonateShop and SWExp.DonateShop.Open then
+                SWExp.DonateShop.Open()
+            end
+        end)
     end
 end
 
@@ -391,10 +420,30 @@ end
 -- STATUSBAR
 -- ============================================================
 
+-- ← Замени на ссылку своего Discord-сервера
+local DISCORD_INVITE = 'https://discord.gg/ТВОЙ_КОД'
+local DISCORD_COL    = Color(88, 101, 242)
+
+local function DrawDiscordIcon(x, y, sz, hov)
+    local col = hov and Color(110, 130, 255) or DISCORD_COL
+
+    -- Тело (скруглённый прямоугольник)
+    draw.RoundedBox(sz / 4, x, y, sz, sz, col)
+
+    -- Два "глаза"
+    local ew = math.max(2, math.floor(sz / 5.5))
+    local eh = math.max(2, math.floor(sz / 4.5))
+    draw.RoundedBox(ew / 2, x + math.floor(sz * 0.26), y + math.floor(sz * 0.32), ew, eh, color_white)
+    draw.RoundedBox(ew / 2, x + math.floor(sz * 0.58), y + math.floor(sz * 0.32), ew, eh, color_white)
+
+    -- Рот (тонкая полоска)
+    draw.RoundedBox(1, x + math.floor(sz * 0.25), y + math.floor(sz * 0.62), math.floor(sz * 0.5), math.max(1, math.floor(sz / 10)), color_white)
+end
+
 function SCOREBOARD:CreateStatusbar()
     local bar = vgui.Create('DPanel', self.Window)
     bar:Dock(BOTTOM)
-    bar:DockMargin(2, 0, 2, 2)  -- Отступы по бокам и снизу
+    bar:DockMargin(2, 0, 2, 2)
     bar:SetTall(30)
 
     bar.Paint = function(pnl, w, h)
@@ -415,6 +464,28 @@ function SCOREBOARD:CreateStatusbar()
         x = x + 180
 
         draw.SimpleText(os.date('%H:%M'), 'SWUI.Small', x, h / 2, SWUI.Colors.TextDim, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
+    end
+
+    -- ── Иконка Discord (правый нижний угол) ──────────────────
+    local ICON_SZ = 20
+    local discordBtn = vgui.Create('DButton', bar)
+    discordBtn:SetSize(ICON_SZ, ICON_SZ)
+    discordBtn:SetText('')
+    discordBtn:SetCursor('hand')
+    discordBtn._hov = false
+    discordBtn.OnCursorEntered = function(s) s._hov = true  end
+    discordBtn.OnCursorExited  = function(s) s._hov = false end
+
+    discordBtn.PerformLayout = function(s)
+        s:SetPos(bar:GetWide() - ICON_SZ - 10, (bar:GetTall() - ICON_SZ) / 2)
+    end
+
+    discordBtn.Paint = function(s, w, h)
+        DrawDiscordIcon(0, 0, w, s._hov)
+    end
+
+    discordBtn.DoClick = function()
+        gui.OpenURL(DISCORD_INVITE)
     end
 end
 

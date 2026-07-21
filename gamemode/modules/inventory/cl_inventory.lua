@@ -28,6 +28,8 @@ netstream.Hook("SWExp::InventorySync", function(data)
     if IsValid(SWExp.Inventory.UI) then
         SWExp.Inventory:RefreshUI()
     end
+    -- Уведомляем модуль хранилища об обновлении данных
+    hook.Run("SWExp::InventorySynced")
 end)
 
 netstream.Hook("SWExp::OpenDeathBag", function(data)
@@ -76,6 +78,9 @@ function SWExp.Inventory:OpenUI()
 
     local frame, content = SWUI.Animated.CreateWindow("ИНВЕНТАРЬ", WND_W, WND_H)
     self.UI = frame
+
+    -- Инвентарь — левая сторона экрана
+    frame:SetPos(10, (ScrH() - WND_H) / 2)
 
     -- Контентная зона (без тайтлбара ~44px)
     local cH = WND_H - 44
@@ -741,7 +746,28 @@ function SWExp.Inventory:DrawItems(grid, storageData, gridType)
         ip.OnMousePressed = function(pnl, btn)
             if btn == MOUSE_LEFT then
                 SWUI.HideTooltip()
-                self:StartDrag(pnl)
+                -- Shift + ЛКМ: быстрое перемещение между инвентарём и хранилищем
+                if input.IsKeyDown(KEY_LSHIFT) or input.IsKeyDown(KEY_RSHIFT) then
+                    if gridType == "storage" then
+                        -- Из хранилища → инвентарь
+                        netstream.Start("SWExp::InventoryQuickMove", {
+                            uniqueID    = uniqueID,
+                            fromStorage = true,
+                            toStorage   = false,
+                        })
+                    elseif gridType == "inventory" and SWExp.CharLocker and IsValid(SWExp.CharLocker.UI) then
+                        -- Из инвентаря → хранилище (только если окно хранилища открыто)
+                        netstream.Start("SWExp::InventoryQuickMove", {
+                            uniqueID    = uniqueID,
+                            fromStorage = false,
+                            toStorage   = true,
+                        })
+                    else
+                        self:StartDrag(pnl)
+                    end
+                else
+                    self:StartDrag(pnl)
+                end
             elseif btn == MOUSE_RIGHT then
                 SWUI.HideTooltip()
                 self:OpenInventoryContextMenu(pnl)
@@ -904,6 +930,48 @@ function SWExp.Inventory:EndDrag()
         end
     end
 
+    -- Проверяем сетку хранилища (окно swexp_char_locker)
+    if not dropped and SWExp.CharLocker and IsValid(SWExp.CharLocker.StorageGrid) then
+        local sg = SWExp.CharLocker.StorageGrid
+        local gx, gy = sg:LocalToScreen(0, 0)
+        local gw, gh = sg:GetSize()
+        if mx >= gx and mx <= gx + gw and my >= gy and my <= gy + gh then
+            local cellX = math.floor((mx - gx) / CELL) + 1
+            local cellY = math.floor((my - gy) / CELL) + 1
+
+            local storData   = self.LocalData.storage
+            local dragData   = self:GetItemData(self.DraggedItem.itemID)
+            local targetUID  = storData.grid and storData.grid[cellX .. "_" .. cellY]
+
+            if targetUID and targetUID ~= self.DraggedItem.uniqueID
+                and dragData and dragData.stackable then
+                local targetItem = storData.items and storData.items[targetUID]
+                if targetItem and targetItem.itemID == self.DraggedItem.itemID
+                    and (targetItem.amount or 1) < (dragData.maxStack or 1) then
+                    netstream.Start("SWExp::InventoryMergeItems", {
+                        sourceUID   = self.DraggedItem.uniqueID,
+                        targetUID   = targetUID,
+                        fromStorage = self.DraggedItem.fromStorage,
+                        toStorage   = true,
+                    })
+                    dropped = true
+                end
+            end
+
+            if not dropped then
+                netstream.Start("SWExp::InventoryMoveItem", {
+                    uniqueID    = self.DraggedItem.uniqueID,
+                    newX        = cellX,
+                    newY        = cellY,
+                    fromStorage = self.DraggedItem.fromStorage,
+                    toStorage   = true,
+                    rotated     = self.DraggedItem.rotated or false,
+                })
+                dropped = true
+            end
+        end
+    end
+
     -- Проверяем слот брони
     if not dropped and IsValid(self._armorSlot) then
         local sx, sy = self._armorSlot:LocalToScreen(0, 0)
@@ -950,10 +1018,27 @@ function SWExp.Inventory:EndDrag()
     end
 
     -- Выброс за пределы окна
-    if not dropped and IsValid(self.UI) then
-        local ux, uy = self.UI:LocalToScreen(0, 0)
-        local uw, uh = self.UI:GetSize()
-        if mx < ux or mx > ux + uw or my < uy or my > uy + uh then
+    -- Предмет выбрасывается только если мышь вне обоих окон: инвентаря И хранилища.
+    if not dropped then
+        local insideAnyWindow = false
+
+        if IsValid(self.UI) then
+            local ux, uy = self.UI:LocalToScreen(0, 0)
+            local uw, uh = self.UI:GetSize()
+            if mx >= ux and mx <= ux + uw and my >= uy and my <= uy + uh then
+                insideAnyWindow = true
+            end
+        end
+
+        if not insideAnyWindow and SWExp.CharLocker and IsValid(SWExp.CharLocker.UI) then
+            local lx, ly = SWExp.CharLocker.UI:LocalToScreen(0, 0)
+            local lw, lh = SWExp.CharLocker.UI:GetSize()
+            if mx >= lx and mx <= lx + lw and my >= ly and my <= ly + lh then
+                insideAnyWindow = true
+            end
+        end
+
+        if not insideAnyWindow then
             netstream.Start("SWExp::InventoryDropItem", {
                 uniqueID    = self.DraggedItem.uniqueID,
                 fromStorage = self.DraggedItem.fromStorage
@@ -1289,7 +1374,8 @@ end
 -- Тултип для предметов в инвентаре
 function SWExp.Inventory:ShowItemTooltip(itemPanel)
     if not itemPanel or not itemPanel.ItemData then return end
-    self:_ShowItemDataTooltip(itemPanel.ItemData)
+    -- Передаём контекст (тип сетки) чтобы тултип мог показать подсказку Shift+ЛКМ
+    self:_ShowItemDataTooltip(itemPanel.ItemData, itemPanel.GridType)
 end
 
 -- Тултип для экипированных предметов
@@ -1307,7 +1393,8 @@ local SLOT_NAMES = {
 }
 
 -- Общая функция отображения тултипа
-function SWExp.Inventory:_ShowItemDataTooltip(itemData)
+-- gridType: "inventory" / "storage" / "bag" / nil — используется для подсказки Shift+ЛКМ
+function SWExp.Inventory:_ShowItemDataTooltip(itemData, gridType)
     local stats = {
         { label = "Размер", value = (itemData.width or 1) .. "×" .. (itemData.height or 1) },
     }
@@ -1336,6 +1423,19 @@ function SWExp.Inventory:_ShowItemDataTooltip(itemData)
     -- Обрезаем описание до 80 символов
     local desc = itemData.description or ""
     if #desc > 80 then desc = string.sub(desc, 1, 77) .. "..." end
+
+    -- Подсказка Shift+ЛКМ в зависимости от контекста
+    local shiftHint = nil
+    if gridType == "bag" then
+        shiftHint = "Shift+ЛКМ: взять в инвентарь"
+    elseif gridType == "storage" then
+        shiftHint = "Shift+ЛКМ: перенести в инвентарь"
+    elseif gridType == "inventory" and SWExp.CharLocker and IsValid(SWExp.CharLocker.UI) then
+        shiftHint = "Shift+ЛКМ: перенести в хранилище"
+    end
+    if shiftHint then
+        table.insert(stats, { label = shiftHint, value = "", col = Color(0, 200, 255, 180) })
+    end
 
     SWUI.ShowTooltip(itemData.name, self:GetRarityName(itemData.rarity), desc, stats)
 end
@@ -1382,7 +1482,7 @@ end
 -- items: таблица {[uniqueID] = {itemID, amount, posX, posY}}
 -- Мы размещаем предметы автоматически при получении
 function SWExp.Inventory:_BuildBagGrid(items, bagW)
-    local BAG_W = bagW or 6
+    local BAG_W = bagW or (self.Config and self.Config.GridWidth or 10)
 
     -- Сначала считаем суммарную площадь предметов чтобы подобрать минимальную высоту
     local totalCells = 0
@@ -1394,8 +1494,9 @@ function SWExp.Inventory:_BuildBagGrid(items, bagW)
             if d then totalCells = totalCells + (d.width or 1) * (d.height or 1) end
         end
     end
-    -- Минимум 8 строк, расширяем при необходимости (запас +2 строки)
-    local BAG_H = math.max(8, math.ceil(totalCells / BAG_W) + 2)
+    -- Минимум GridHeight строк (как у инвентаря игрока), расширяем при необходимости (запас +2 строки)
+    local minRows = self.Config and self.Config.GridHeight or 6
+    local BAG_H = math.max(minRows, math.ceil(totalCells / BAG_W) + 2)
 
     local grid = {}
     local placed = {}
@@ -1452,9 +1553,9 @@ function SWExp.Inventory:_CreateDeathBagWindow(entIndex, rawItems)
 
     local cfg  = self.Config
     local CELL = cfg.CellSize
-    local BAG_W = 6
+    local BAG_W = cfg.GridWidth   -- совпадает с шириной инвентаря игрока
     local PAD   = 12
-    local MAX_VISIBLE_ROWS = 10  -- максимальная высота без скролла
+    local MAX_VISIBLE_ROWS = cfg.GridHeight  -- совпадает с высотой инвентаря игрока
 
     -- Сначала строим grid чтобы узнать реальный BAG_H
     local placedItems, bagGrid, rW, rH = self:_BuildBagGrid(rawItems, BAG_W)
@@ -1473,16 +1574,8 @@ function SWExp.Inventory:_CreateDeathBagWindow(entIndex, rawItems)
     self.DeathBagUI = frame
     frame.DeathBagEnt = entIndex
 
-    -- Позиционируем окно рядом с инвентарём
-    if IsValid(self.UI) then
-        local ix, iy = self.UI:GetPos()
-        local iw     = self.UI:GetWide()
-        local nx = ix + iw + 10
-        if nx + wndW > ScrW() then nx = ix - wndW - 10 end
-        frame:SetPos(nx, iy)
-    else
-        frame:Center()
-    end
+    -- Сумка — правая сторона экрана, по центру по вертикали
+    frame:SetPos(ScrW() - wndW - 10, (ScrH() - wndH) / 2)
 
     SWUI.CreateSectionHeader(content, "ПРЕДМЕТЫ В СУМКЕ", PAD, PAD, BAG_W * CELL)
 
@@ -1606,7 +1699,16 @@ function SWExp.Inventory:_DrawBagItems(entIndex, rawItems)
             end
 
             ip.OnMousePressed = function(pnl, btn)
-                if btn == MOUSE_RIGHT then
+                if btn == MOUSE_LEFT then
+                    -- Shift + ЛКМ: быстро взять боезапас из сумки
+                    if input.IsKeyDown(KEY_LSHIFT) or input.IsKeyDown(KEY_RSHIFT) then
+                        SWUI.HideTooltip()
+                        netstream.Start("SWExp::InventoryTakeFromBag", {
+                            entIndex = entIndex,
+                            uniqueID = uid,
+                        })
+                    end
+                elseif btn == MOUSE_RIGHT then
                     SWUI.HideTooltip()
                     local capturedUID = uid
                     local capturedEnt = entIndex
@@ -1627,7 +1729,10 @@ function SWExp.Inventory:_DrawBagItems(entIndex, rawItems)
             end
 
             ip.OnCursorEntered = function(pnl)
-                SWUI.ShowTooltip("Боезапас: " .. (item.ammoType or "?"), nil, "Количество: " .. (item.amount or 0) .. " ед.")
+                SWUI.ShowTooltip("Боезапас: " .. (item.ammoType or "?"), nil,
+                    "Количество: " .. (item.amount or 0) .. " ед.",
+                    {{ label = "Shift+ЛКМ: взять в инвентарь", value = "", col = Color(0, 200, 255, 180) }}
+                )
             end
             ip.OnCursorExited = function() SWUI.HideTooltip() end
             continue
@@ -1668,11 +1773,21 @@ function SWExp.Inventory:_DrawBagItems(entIndex, rawItems)
             surface.DrawOutlinedRect(2, 2, w - 4, h - 4, 1)
         end
 
-        -- ЛКМ: начать drag (источник = "bag")
+        -- ЛКМ: начать drag (источник = "bag"); Shift+ЛКМ — быстро взять в инвентарь
         ip.OnMousePressed = function(pnl, btn)
             if btn == MOUSE_LEFT then
                 SWUI.HideTooltip()
-                self:StartBagDrag(pnl, entIndex)
+                if input.IsKeyDown(KEY_LSHIFT) or input.IsKeyDown(KEY_RSHIFT) then
+                    -- Shift + ЛКМ: сразу забрать предмет из сумки в инвентарь
+                    local capturedUID = uid
+                    local capturedEnt = entIndex
+                    netstream.Start("SWExp::InventoryTakeFromBag", {
+                        entIndex = capturedEnt,
+                        uniqueID = capturedUID,
+                    })
+                else
+                    self:StartBagDrag(pnl, entIndex)
+                end
             elseif btn == MOUSE_RIGHT then
                 SWUI.HideTooltip()
                 local capturedUID = uid
@@ -1753,7 +1868,10 @@ function SWExp.Inventory:_DrawBagItems(entIndex, rawItems)
         end
 
         ip.OnCursorEntered = function(pnl)
-            if not self.DraggedItem then self:ShowItemTooltip(pnl) end
+            if not self.DraggedItem then
+                -- Используем _ShowItemDataTooltip напрямую с gridType = "bag" для подсказки Shift+ЛКМ
+                self:_ShowItemDataTooltip(d, "bag")
+            end
         end
 
         ip.OnCursorExited = function()

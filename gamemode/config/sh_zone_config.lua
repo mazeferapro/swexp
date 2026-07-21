@@ -23,16 +23,16 @@ SWExp.ZoneConfig.Tiers = {
 
         -- Параметры зоны
         radius      = 600,                      -- радиус спавна нодов (ед.)
-        maxMat      = 5,                        -- макс. одновременных материальных нодов
-        maxRes      = 4,                        -- макс. одновременных точек исследования
-        respawnTime = 90,                       -- секунд до следующего цикла спавна
+        maxMat      = 2,                        -- макс. одновременных материальных нодов
+        maxRes      = 2,                        -- макс. одновременных точек исследования
+        respawnTime = 300,                       -- секунд до следующего цикла спавна
 
         -- Материалы (mat_basic) за одну добычу
-        matAmount   = { min = 1, max = 3 },
-        matCharges  = { min = 1, max = 2 },     -- зарядов на ноде
+        matAmount   = { min = 1, max = 6 },
+        matCharges  = { min = 3, max = 5 },     -- зарядов на ноде
 
         -- Очки исследования (research_data) за одно сканирование
-        resPoints   = 1,                        -- предметов research_data
+        resPoints   = 5,                        -- предметов research_data
     },
 
     -- ──────────────── ТИР 2 ────────────────
@@ -40,15 +40,15 @@ SWExp.ZoneConfig.Tiers = {
         name        = "Зона 2 — Внешний рубеж",
         color       = Color(80, 160, 255),      -- синий
 
-        radius      = 700,
-        maxMat      = 6,
-        maxRes      = 5,
-        respawnTime = 75,
+        radius      = 600,
+        maxMat      = 2,
+        maxRes      = 2,
+        respawnTime = 300,
 
-        matAmount   = { min = 3, max = 6 },
-        matCharges  = { min = 1, max = 3 },
+        matAmount   = { min = 2, max = 10 },
+        matCharges  = { min = 4, max = 5 },
 
-        resPoints   = 2,
+        resPoints   = 10,
     },
 
     -- ──────────────── ТИР 3 ────────────────
@@ -56,15 +56,15 @@ SWExp.ZoneConfig.Tiers = {
         name        = "Зона 3 — Аномальный сектор",
         color       = Color(255, 180, 40),      -- оранжевый
 
-        radius      = 800,
-        maxMat      = 7,
-        maxRes      = 5,
-        respawnTime = 60,
+        radius      = 600,
+        maxMat      = 2,
+        maxRes      = 2,
+        respawnTime = 600,
 
-        matAmount   = { min = 5, max = 10 },
-        matCharges  = { min = 2, max = 3 },
+        matAmount   = { min = 3, max = 12 },
+        matCharges  = { min = 5, max = 6 },
 
-        resPoints   = 3,
+        resPoints   = 15,
     },
 
     -- ──────────────── ТИР 4 ────────────────
@@ -72,15 +72,15 @@ SWExp.ZoneConfig.Tiers = {
         name        = "Зона 4 — Сердце тьмы",
         color       = Color(220, 60, 60),       -- красный
 
-        radius      = 900,
+        radius      = 600,
         maxMat      = 8,
         maxRes      = 6,
-        respawnTime = 45,
+        respawnTime = 600,
 
-        matAmount   = { min = 8, max = 16 },
-        matCharges  = { min = 2, max = 4 },
+        matAmount   = { min = 4, max = 16 },
+        matCharges  = { min = 6, max = 7 },
 
-        resPoints   = 5,
+        resPoints   = 20,
     },
 }
 
@@ -93,69 +93,41 @@ SWExp.ZoneConfig.MatTypes = {
 
     [1] = {
         {
-            name      = "Обломки техники",
+            name      = "Металлолом",
             color     = Color(180, 180, 220),
-            models    = { "models/c24_v3/debris_010.mdl", "models/blu/flak_d5.mdl", "models/blu/carriage_d1.mdl" },
+            models    = { "models/niksacokica/vehicles/veh_neu_speeder_02_debris.mdl", "models/niksacokica/vehicles/veh_neu_speeder_02_debris.mdl"},
             sound     = "physics/metal/metal_box_impact_hard1.wav",
             monologue = "Остатки чего-то механического.",
-        },
-        {
-            name      = "Залежи криобрита",
-            color     = Color(120, 220, 80),
-            models    = { "models/props_abandoned/crystals/crystal_default/crystal_cluster_wall_small_a.mdl",},
-            sound     = "physics/flesh/flesh_impact_hard1.wav",
-            monologue = "Кристаллы криобрита. Промёрзшие до самой сердцевины — но ценные. Интересно, как они здесь образовались.",
         },
     },
 
     [2] = {
         {
-            name      = "Залежи криобрита",
+            name      = "Мешок с припасами",
             color     = Color(80, 200, 255),
-            models    = { "models/props_c17/canister01a.mdl", "models/props_c17/canister02a.mdl" },
+            models    = { "models/niksacokica/containers/pvp_loot_container_01.mdl"},
             sound     = "physics/metal/metal_canister_impact_hard1.wav",
-            monologue = "Кристаллы криобрита. Промёрзшие до самой сердцевины — но ценные. Интересно, как они здесь образовались.",
-        },
-        {
-            name      = "Металлолом Вонгов",
-            color     = Color(200, 140, 60),
-            models    = { "models/props_junk/metal_wire001a.mdl", "models/props_c17/oildrum001a.mdl" },
-            sound     = "physics/metal/metal_solid_impact_hard1.wav",
-            monologue = "Биологический металл Вонгов. Живой — или был живым. Не трогать голыми руками.",
+            monologue = "Похоже в нём есть что-то полезное",
         },
     },
 
     [3] = {
         {
-            name      = "Энергетические кристаллы",
+            name      = "Повреждённый ящик",
             color     = Color(255, 100, 220),
-            models    = { "models/props_combine/combine_mine01.mdl", "models/props_junk/garbage_bag001a.mdl" },
+            models    = { "models/niksacokica/containers/con_square_crate_broken_no_debris.mdl", "models/niksacokica/containers/con_crate_04_broken_no_debris.mdl" },
             sound     = "ambient/energy/zap7.wav",
-            monologue = "Нестабильные. Лучше не бросать. Зато заряд держат лучше любого аккумулятора.",
-        },
-        {
-            name      = "Вонгские биокристаллы",
-            color     = Color(180, 255, 120),
-            models    = { "models/props_lab/jar001a.mdl", "models/props_c17/canister02a.mdl" },
-            sound     = "ambient/energy/whiteflash.wav",
-            monologue = "Живые кристаллы. Растут прямо на камне. Вонги используют их в биотехнологии — значит, ценные.",
+            monologue = "Может в нём осталось что-то полезное.",
         },
     },
 
     [4] = {
         {
-            name      = "Артефактный сплав",
-            color     = Color(255, 200, 60),
-            models    = { "models/props_c17/oildrum001a.mdl", "models/props_combine/combine_mine01.mdl" },
-            sound     = "ambient/energy/zap9.wav",
-            monologue = "Этот металл не из известных мне сплавов. Древний. Очень древний. И очень прочный.",
-        },
-        {
-            name      = "Сердцевина аномалии",
+            name      = "Ящик с материалами",
             color     = Color(220, 80, 255),
             models    = { "models/props_junk/metal_wire001a.mdl", "models/props_lab/beaker01.mdl" },
             sound     = "ambient/energy/force_field_loop1.wav",
-            monologue = "Источник здешних аномалий. Излучение зашкаливает. Долго рядом не стоять — но материал того стоит.",
+            monologue = "Он наверняка набит полезными материалами.",
         },
     },
 }
@@ -173,57 +145,37 @@ SWExp.ZoneConfig.ResTypes = {
             models    = { "models/vj_base/gibs/alien/gib1.mdl", "models/vj_base/gibs/human/gib1.mdl" },
             monologue = "Фу какая мерзость ... ",
         },
-        {
-            name      = "Аномалия планеты",
-            color     = Color(80, 160, 255),
-            models    = { "models/bananakin/rp_arquitens_cruiser_bana/sims_crystal_fixed.mdl",},
-            monologue = "Сенсоры зашкаливают. Энергетическая аномалия, либо помехи — не разберу. ",
-        },
+        
     },
 
     [2] = {
         {
-            name      = "Вонгская биотехнология",
-            color     = Color(120, 220, 80),
-            models    = { "models/props_lab/beaker01.mdl", "models/props_lab/jar001a.mdl" },
-            monologue = "Это живое? Или было живым? Вонги делают всё из органики. Нужно сканировать.",
+            name      = "Следы присутствия",
+            color     = Color(255, 200, 60),
+            models    = { "models/vj_base/gibs/alien/gib1.mdl", "models/vj_base/gibs/human/gib1.mdl" },
+            monologue = "Фу какая мерзость ... ",
         },
-        {
-            name      = "Мёртвый Вонг",
-            color     = Color(220, 80, 80),
-            models    = { "models/props_junk/metal_wire001a.mdl", "models/props_c17/oildrum001a.mdl" },
-            monologue = "Вонг. Мёртв. Но не от нашего оружия — следы ритуала. Это важно знать.",
-        },
+        
     },
 
     [3] = {
         {
-            name      = "Артефакт древней цивилизации",
-            color     = Color(200, 130, 255),
-            models    = { "models/props_c17/fishingtackle01.mdl", "models/props_junk/PopCan01a.mdl" },
-            monologue = "Это старше всего, что я видел. Намного старше. Здесь жили разумные существа до Вонгов.",
+            name      = "Следы присутствия",
+            color     = Color(255, 200, 60),
+            models    = { "models/vj_base/gibs/alien/gib1.mdl", "models/vj_base/gibs/human/gib1.mdl" },
+            monologue = "Фу какая мерзость ... ",
         },
-        {
-            name      = "Энергетический источник",
-            color     = Color(80, 220, 255),
-            models    = { "models/props_combine/combine_mine01.mdl", "models/props_c17/canister02a.mdl" },
-            monologue = "Постоянный энергетический фон. Не природный. Кто-то построил здесь что-то очень давно.",
-        },
+        
     },
 
     [4] = {
         {
-            name      = "Ядро аномалии",
-            color     = Color(255, 80, 80),
-            models    = { "models/props_lab/jar001a.mdl", "models/props_c17/canister01a.mdl" },
-            monologue = "Это центр всего. Датчики сходят с ума. Сканируй быстро и уходи — здесь опасно.",
+            name      = "Следы присутствия",
+            color     = Color(255, 200, 60),
+            models    = { "models/vj_base/gibs/alien/gib1.mdl", "models/vj_base/gibs/human/gib1.mdl" },
+            monologue = "Фу какая мерзость ... ",
         },
-        {
-            name      = "Реликвия предшественников",
-            color     = Color(255, 220, 80),
-            models    = { "models/props_c17/fishingtackle01.mdl", "models/props_junk/metal_wire001a.mdl" },
-            monologue = "Реликвия. Учёные с базы за такое отдадут половину разработок. Надо сканировать аккуратно.",
-        },
+        
     },
 }
 

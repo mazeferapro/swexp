@@ -99,7 +99,7 @@ SWExp.Inventory:RegisterItem({
     armorTier = 1,
     armorReduction = 0.10,
     armorClass = "light",
-    playerModel = "models/sb_arf/sb_arf.mdl",
+    playerModel = "models/ct_arf/ct_arf.mdl",
     classSWEP = "realistic_hook",
     isAvailableCloak = true
 })
@@ -118,7 +118,7 @@ SWExp.Inventory:RegisterItem({
     armorTier = 2,
     armorReduction = 0.15,
     armorClass = "light",
-    playerModel = "models/sb_arf/sb_arf.mdl",
+    playerModel = "models/ct_arf/ct_arf.mdl",
     classSWEP = "realistic_hook",
     isAvailableCloak = true
 })
@@ -137,7 +137,7 @@ SWExp.Inventory:RegisterItem({
     armorTier = 3,
     armorReduction = 0.20,
     armorClass = "light",
-    playerModel = "models/sb_arf/sb_arf.mdl",
+    playerModel = "models/ct_arf/ct_arf.mdl",
     classSWEP = "realistic_hook",
     isAvailableCloak = true
 })
@@ -156,7 +156,7 @@ SWExp.Inventory:RegisterItem({
     armorTier = 4,
     armorReduction = 0.25,
     armorClass = "light",
-    playerModel = "models/sb_arf/sb_arf.mdl",
+    playerModel = "models/ct_arf/ct_arf.mdl",
     classSWEP = "realistic_hook",
     isAvailableCloak = true
 })
@@ -175,7 +175,7 @@ SWExp.Inventory:RegisterItem({
     armorTier = 5,
     armorReduction = 0.30,
     armorClass = "light",
-    playerModel = "models/sb_arf/sb_arf.mdl",
+    playerModel = "models/ct_arf/ct_arf.mdl",
     classSWEP = "realistic_hook",
     isAvailableCloak = true
 })
@@ -194,7 +194,7 @@ SWExp.Inventory:RegisterItem({
     armorTier = 1,
     armorReduction = 0.30,
     armorClass = "medium",
-    playerModel = "models/sb_sld/sb_sld.mdl",
+    playerModel = "models/ct_pvt/ct_pvt.mdl",
     classSWEP = nil,
     isAvailableCloak = false
 })
@@ -213,7 +213,7 @@ SWExp.Inventory:RegisterItem({
     armorTier = 2,
     armorReduction = 0.35,
     armorClass = "medium",
-    playerModel = "models/sb_sld/sb_sld.mdl",
+    playerModel = "models/ct_pvt/ct_pvt.mdl",
     classSWEP = nil,
     isAvailableCloak = false
 })
@@ -232,7 +232,7 @@ SWExp.Inventory:RegisterItem({
     armorTier = 3,
     armorReduction = 0.40,
     armorClass = "medium",
-    playerModel = "models/sb_sld/sb_sld.mdl",
+    playerModel = "models/ct_pvt/ct_pvt.mdl",
     classSWEP = nil,
     isAvailableCloak = false
 })
@@ -251,7 +251,7 @@ SWExp.Inventory:RegisterItem({
     armorTier = 4,
     armorReduction = 0.45,
     armorClass = "medium",
-    playerModel = "models/sb_sld/sb_sld.mdl",
+    playerModel = "models/ct_pvt/ct_pvt.mdl",
     classSWEP = nil,
     isAvailableCloak = false
 })
@@ -270,7 +270,7 @@ SWExp.Inventory:RegisterItem({
     armorTier = 5,
     armorReduction = 0.50,
     armorClass = "medium",
-    playerModel = "models/sb_sld/sb_sld.mdl",
+    playerModel = "models/ct_pvt/ct_pvt.mdl",
     classSWEP = nil,
     isAvailableCloak = false
 })
@@ -289,7 +289,7 @@ SWExp.Inventory:RegisterItem({
     armorTier = 1,
     armorReduction = 0.40,
     armorClass = "heavy",
-    playerModel = "models/sb_heavy/sb_heavy.mdl",
+    playerModel = "models/ct_heavy/ct_heavy.mdl",
     classSWEP = nil,
     isAvailableCloak = false
 })
@@ -308,7 +308,7 @@ SWExp.Inventory:RegisterItem({
     armorTier = 2,
     armorReduction = 0.45,
     armorClass = "heavy",
-    playerModel = "models/sb_heavy/sb_heavy.mdl",
+    playerModel = "models/ct_heavy/ct_heavy.mdl",
     classSWEP = nil,
     isAvailableCloak = false
 })
@@ -327,7 +327,7 @@ SWExp.Inventory:RegisterItem({
     armorTier = 3,
     armorReduction = 0.50,
     armorClass = "heavy",
-    playerModel = "models/sb_heavy/sb_heavy.mdl",
+    playerModel = "models/ct_heavy/ct_heavy.mdl",
     classSWEP = nil,
     isAvailableCloak = false
 })
@@ -346,7 +346,7 @@ SWExp.Inventory:RegisterItem({
     armorTier = 4,
     armorReduction = 0.55,
     armorClass = "heavy",
-    playerModel = "models/sb_heavy/sb_heavy.mdl",
+    playerModel = "models/ct_heavy/ct_heavy.mdl",
     classSWEP = nil,
     isAvailableCloak = false
 })
@@ -365,8 +365,27 @@ SWExp.Inventory:RegisterItem({
     armorTier = 5,
     armorReduction = 0.60,
     armorClass = "heavy",
-    playerModel = "models/sb_heavy/sb_heavy.mdl",
+    playerModel = "models/ct_heavy/ct_heavy.mdl",
     classSWEP = nil,
+    isAvailableCloak = false
+})
+
+SWExp.Inventory:RegisterItem({
+    id = "armor_arc",
+    name = "Броня ARC (Тир 4)",
+    description = "Тяжёлая броня клона.",
+    icon = "swexpicon/swexp-armor-heavy.png",
+    width = 3,
+    height = 4,
+    slotType = "armor",
+    rarity = "epic",
+    worldModel = "models/vortexgaming/tc13u/armor/chest.mdl",
+    -- Уникальные параметры для sv_inventory
+    armorTier = 4,
+    armorReduction = 0.50,
+    armorClass = "heavy",
+    playerModel = "models/ct_arc/ct_arc.mdl",
+    classSWEP = {"fort_datapad", "weapon_lvsrepair", "arccw_stimpistol", "weapon_defibrillator", "realistic_hook"},
     isAvailableCloak = false
 })
 
@@ -384,7 +403,7 @@ SWExp.Inventory:RegisterItem({
     armorTier = 1,
     armorReduction = 0.25,
     armorClass = "engineer",
-    playerModel = "models/sb_eng/sb_eng.mdl",
+    playerModel = "models/ct_eng/ct_eng.mdl",
     classSWEP = {"fort_datapad", "weapon_lvsrepair"},
     isAvailableCloak = false
 })
@@ -403,7 +422,7 @@ SWExp.Inventory:RegisterItem({
     armorTier = 2,
     armorReduction = 0.30,
     armorClass = "engineer",
-    playerModel = "models/sb_eng/sb_eng.mdl",
+    playerModel = "models/ct_eng/ct_eng.mdl",
     classSWEP = {"fort_datapad", "weapon_lvsrepair"},
     isAvailableCloak = false
 })
@@ -422,7 +441,7 @@ SWExp.Inventory:RegisterItem({
     armorTier = 3,
     armorReduction = 0.35,
     armorClass = "engineer",
-    playerModel = "models/sb_eng/sb_eng.mdl",
+    playerModel = "models/ct_eng/ct_eng.mdl",
     classSWEP = {"fort_datapad", "weapon_lvsrepair"},
     isAvailableCloak = false
 })
@@ -460,7 +479,7 @@ SWExp.Inventory:RegisterItem({
     armorTier = 5,
     armorReduction = 0.45,
     armorClass = "engineer",
-    playerModel = "models/sb_eng/sb_eng.mdl",
+    playerModel = "models/ct_eng/ct_eng.mdl",
     classSWEP = {"fort_datapad", "weapon_lvsrepair"},
     isAvailableCloak = false
 })
@@ -479,7 +498,7 @@ SWExp.Inventory:RegisterItem({
     armorTier = 1,
     armorReduction = 0.25,
     armorClass = "medical",
-    playerModel = "models/sb_med/sb_med.mdl",
+    playerModel = "models/ct_med/ct_med.mdl",
     classSWEP = {"weapon_defibrillator", "arccw_stimpistol"},
     isAvailableCloak = false
 })
@@ -498,7 +517,7 @@ SWExp.Inventory:RegisterItem({
     armorTier = 2,
     armorReduction = 0.30,
     armorClass = "medical",
-    playerModel = "models/sb_med/sb_med.mdl",
+    playerModel = "models/ct_med/ct_med.mdl",
     classSWEP = {"weapon_defibrillator", "arccw_stimpistol"},
     isAvailableCloak = false
 })
@@ -517,7 +536,7 @@ SWExp.Inventory:RegisterItem({
     armorTier = 3,
     armorReduction = 0.35,
     armorClass = "medical",
-    playerModel = "models/sb_med/sb_med.mdl",
+    playerModel = "models/ct_med/ct_med.mdl",
     classSWEP = {"weapon_defibrillator", "arccw_stimpistol"},
     isAvailableCloak = false
 })
@@ -536,7 +555,7 @@ SWExp.Inventory:RegisterItem({
     armorTier = 4,
     armorReduction = 0.40,
     armorClass = "medical",
-    playerModel = "models/sb_med/sb_med.mdl",
+    playerModel = "models/ct_med/ct_med.mdl",
     classSWEP = {"weapon_defibrillator", "arccw_stimpistol"},
     isAvailableCloak = false
 })
@@ -555,7 +574,7 @@ SWExp.Inventory:RegisterItem({
     armorTier = 5,
     armorReduction = 0.45,
     armorClass = "medical",
-    playerModel = "models/sb_med/sb_med.mdl",
+    playerModel = "models/ct_med/ct_med.mdl",
     classSWEP = {"weapon_defibrillator", "arccw_stimpistol"},
     isAvailableCloak = false
 })
@@ -610,7 +629,7 @@ SWExp.Inventory:RegisterItem({
     height = 1,
     canDrop = true,
     rarity = "uncommon",
-    worldModel = "models/props_junk/PopCan01a.mdl",
+    worldModel = "models/helios/props/precursor_holocron_key.mdl",
     portalTier = 1
 })
 
@@ -623,7 +642,7 @@ SWExp.Inventory:RegisterItem({
     height = 1,
     canDrop = true,
     rarity = "rare",
-    worldModel = "models/props_junk/PopCan01a.mdl",
+    worldModel = "models/helios/props/precursor_holocron_key.mdl",
     portalTier = 2
 })
 
@@ -636,7 +655,7 @@ SWExp.Inventory:RegisterItem({
     height = 1,
     canDrop = true,
     rarity = "epic",
-    worldModel = "models/props_junk/PopCan01a.mdl",
+    worldModel = "models/helios/props/precursor_holocron_key.mdl",
     portalTier = 3
 })
 
@@ -649,7 +668,7 @@ SWExp.Inventory:RegisterItem({
     height = 1,
     canDrop = true,
     rarity = "legendary",
-    worldModel = "models/props_junk/PopCan01a.mdl",
+    worldModel = "models/helios/props/precursor_holocron_key.mdl",
     portalTier = 4
 })
 
@@ -663,7 +682,7 @@ SWExp.Inventory:RegisterItem({
     height = 1,
     slotType = "medical",
     rarity = "common",
-    worldModel = "models/props_lab/jar001a.mdl",
+    worldModel = "models/props/starwars/medical/ammo_pickup.mdl",
     -- Параметры хила со временем (HoT)
     healType     = "hot",       -- Heal over Time
     healPerTick  = 2,           -- HP за каждый тик
@@ -680,7 +699,7 @@ SWExp.Inventory:RegisterItem({
     height = 2,
     slotType = "medical",
     rarity = "uncommon",
-    worldModel = "models/props_lab/jar001a.mdl",
+    worldModel = "models/props/starwars/medical/ammo_pickup.mdl",
     healType     = "hot",
     healPerTick  = 4,
     tickInterval = 1.0,
@@ -696,7 +715,7 @@ SWExp.Inventory:RegisterItem({
     height = 2,
     slotType = "medical",
     rarity = "rare",
-    worldModel = "models/props_lab/jar001a.mdl",
+    worldModel = "models/props/starwars/medical/ammo_pickup.mdl",
     healType     = "hot",
     healPerTick  = 6,
     tickInterval = 1.0,
@@ -712,7 +731,7 @@ SWExp.Inventory:RegisterItem({
     height = 2,
     slotType = "medical",
     rarity = "epic",
-    worldModel = "models/props_lab/jar001a.mdl",
+    worldModel = "models/props/starwars/medical/ammo_pickup.mdl",
     healType     = "hot",
     healPerTick  = 8,
     tickInterval = 1.0,
@@ -728,23 +747,7 @@ SWExp.Inventory:RegisterItem({
     height = 2,
     slotType = "medical",
     rarity = "legendary",
-    worldModel = "models/props_lab/jar001a.mdl",
-    healType     = "hot",
-    healPerTick  = 10,
-    tickInterval = 1.0,
-    healDuration = 10,
-})
-
-SWExp.Inventory:RegisterItem({
-    id = "medkit_advanced",
-    name = "Улучшенная аптечка",
-    description = "Постепенно восстанавливает 100 HP за 10 секунд (10 HP/сек)",
-    icon = "swexpicon/swexp-health.png",
-    width = 2,
-    height = 2,
-    slotType = "medical",
-    rarity = "uncommon",
-    worldModel = "models/props_lab/jar001a.mdl",
+    worldModel = "models/props/starwars/medical/ammo_pickup.mdl",
     healType     = "hot",
     healPerTick  = 10,
     tickInterval = 1.0,
@@ -761,7 +764,7 @@ SWExp.Inventory:RegisterItem({
     height = 2,
     slotType = "primary",
     rarity = "uncommon",
-    worldModel = "models/weapons/w_ar2.mdl",
+    worldModel = "models/arccw/kraken/republic/world/w_dc15a.mdl",
     weaponClass = "arccw_k_dc15a"
 })
 
@@ -774,7 +777,7 @@ SWExp.Inventory:RegisterItem({
     height = 2,
     slotType = "primary",
     rarity = "rare",
-    worldModel = "models/weapons/w_ar2.mdl",
+    worldModel = "models/arccw/kraken/republic/world/w_dc15a.mdl",
     weaponClass = "arccw_k_dc15a_grenadier"
 })
 
@@ -787,7 +790,7 @@ SWExp.Inventory:RegisterItem({
     height = 2,
     slotType = "primary",
     rarity = "common",
-    worldModel = "models/weapons/w_ar2.mdl",
+    worldModel = "models/arccw/kraken/republic/world/w_dc15s.mdl",
     weaponClass = "arccw_k_dc15s"
 })
 
@@ -800,7 +803,7 @@ SWExp.Inventory:RegisterItem({
     height = 2,
     slotType = "primary",
     rarity = "uncommon",
-    worldModel = "models/weapons/w_ar2.mdl",
+    worldModel = "models/arccw/kraken/republic/world/w_dc15s.mdl",
     weaponClass = "arccw_k_dc15s_grenadier"
 })
 
@@ -813,7 +816,7 @@ SWExp.Inventory:RegisterItem({
     height = 2,
     slotType = "primary",
     rarity = "uncommon",
-    worldModel = "models/weapons/w_ar2.mdl",
+    worldModel = "models/arccw/kraken/republic/world/w_dc15x.mdl",
     weaponClass = "arccw_k_dc15x"
 })
 
@@ -826,20 +829,20 @@ SWExp.Inventory:RegisterItem({
     height = 2,
     slotType = "secondary",
     rarity = "common",
-    worldModel = "models/weapons/w_ar2.mdl",
+    worldModel = "models/arccw/kraken/republic/world/w_dc17.mdl",
     weaponClass = "arccw_k_dc17"
 })
 
 SWExp.Inventory:RegisterItem({
     id = "weapon_dc17e",
-    name = "DC-17",
+    name = "DC-17 улучшеный",
     description = "",
     icon = "swexpicon/swexp-dc-17.png",
     width = 2,
     height = 2,
     slotType = "secondary",
     rarity = "uncommon",
-    worldModel = "models/weapons/w_ar2.mdl",
+    worldModel = "models/arccw/kraken/republic/world/w_dc17ext.mdl",
     weaponClass = "arccw_k_dc17ext"
 })
 
@@ -852,7 +855,7 @@ SWExp.Inventory:RegisterItem({
     height = 2,
     slotType = "secondary",
     rarity = "rare",
-    worldModel = "models/weapons/w_ar2.mdl",
+    worldModel = "models/arccw/kraken/republic/world/w_dc17ext.mdl",
     weaponClass = "arccw_k_dc17ext_akimbo"
 })
 
@@ -865,7 +868,7 @@ SWExp.Inventory:RegisterItem({
     height = 2,
     slotType = "secondary",
     rarity = "uncommon",
-    worldModel = "models/weapons/w_ar2.mdl",
+    worldModel = "models/arccw/kraken/republic/world/w_dc17.mdl",
     weaponClass = "arccw_k_dc17_akimbo"
 })
 
@@ -878,7 +881,7 @@ SWExp.Inventory:RegisterItem({
     height = 2,
     slotType = "primary",
     rarity = "rare",
-    worldModel = "models/weapons/w_ar2.mdl",
+    worldModel = "models/arccw/kraken/republic/world/w_dp23.mdl",
     weaponClass = "arccw_k_dp23"
 })
 
@@ -891,7 +894,7 @@ SWExp.Inventory:RegisterItem({
     height = 2,
     slotType = "primary",
     rarity = "epic",
-    worldModel = "models/weapons/w_ar2.mdl",
+    worldModel = "models/arccw/kraken/republic/world/w_dp23c.mdl",
     weaponClass = "arccw_k_dp23c"
 })
 
@@ -904,7 +907,7 @@ SWExp.Inventory:RegisterItem({
     height = 2,
     slotType = "primary",
     rarity = "uncommon",
-    worldModel = "models/weapons/w_ar2.mdl",
+    worldModel = "models/arccw/kraken/republic/world/w_dp24.mdl",
     weaponClass = "arccw_k_dp24"
 })
 
@@ -917,7 +920,7 @@ SWExp.Inventory:RegisterItem({
     height = 2,
     slotType = "primary",
     rarity = "rare",
-    worldModel = "models/weapons/w_ar2.mdl",
+    worldModel = "models/arccw/kraken/republic/world/w_dp24c.mdl",
     weaponClass = "arccw_k_dp24c"
 })
 
@@ -931,7 +934,7 @@ SWExp.Inventory:RegisterItem({
     height = 2,
     slotType = "primary",
     rarity = "rare",
-    worldModel = "models/weapons/w_ar2.mdl",
+    worldModel = "models/arccw/kraken/republic/world/w_e9.mdl",
     weaponClass = "arccw_k_republic_e9"
 })
 
@@ -944,7 +947,7 @@ SWExp.Inventory:RegisterItem({
     height = 2,
     slotType = "secondary",
     rarity = "legendary",
-    worldModel = "models/weapons/w_ar2.mdl",
+    worldModel = "models/arccw/kraken/sw/explosives/world/w_g125.mdl",
     weaponClass = "arccw_k_weapon_g125"
 })
 
@@ -957,7 +960,7 @@ SWExp.Inventory:RegisterItem({
     height = 3,
     slotType = "heavy",
     rarity = "rare",
-    worldModel = "models/weapons/w_ar2.mdl",
+    worldModel = "models/arccw/kraken/sw/explosives/world/w_hh12_republic.mdl",
     weaponClass = "arccw_k_launcher_hh12"
 })
 
@@ -970,7 +973,7 @@ SWExp.Inventory:RegisterItem({
     height = 2,
     slotType = "primary",
     rarity = "rare",
-    worldModel = "models/weapons/w_ar2.mdl",
+    worldModel = "models/arccw/kraken/republic/world/w_dc15a.mdl",
     weaponClass = "arccw_k_dc15le"
 })
 
@@ -983,7 +986,7 @@ SWExp.Inventory:RegisterItem({
     height = 3,
     slotType = "heavy",
     rarity = "uncommon",
-    worldModel = "models/weapons/w_ar2.mdl",
+    worldModel = "models/arccw/kraken/sw/explosives/world/w_rps6_republic.mdl",
     weaponClass = "arccw_k_launcher_rps6"
 })
 
@@ -996,7 +999,7 @@ SWExp.Inventory:RegisterItem({
     height = 2,
     slotType = "primary",
     rarity = "rare",
-    worldModel = "models/weapons/w_ar2.mdl",
+    worldModel = "models/arccw/kraken/sw/explosives/world/w_smartlauncher.mdl",
     weaponClass = "arccw_k_launcher_smartlauncher"
 })
 
@@ -1009,8 +1012,8 @@ SWExp.Inventory:RegisterItem({
     height = 2,
     slotType = "primary",
     rarity = "epic",
-    worldModel = "models/weapons/w_ar2.mdl",
-    weaponClass = "swexp-westarm5"
+    worldModel = "models/arccw/kraken/republic/world/w_westar.mdl",
+    weaponClass = "arccw_k_westarm5"
 })
 
 SWExp.Inventory:RegisterItem({
@@ -1022,7 +1025,7 @@ SWExp.Inventory:RegisterItem({
     height = 2,
     slotType = "primary",
     rarity = "legendary",
-    worldModel = "models/weapons/w_ar2.mdl",
+    worldModel = "models/arccw/kraken/sw/explosives/world/w_sw_antimaterial.mdl",
     weaponClass = "arccw_k_weapon_antimaterial"
 })
 
@@ -1035,7 +1038,7 @@ SWExp.Inventory:RegisterItem({
     height = 3,
     slotType = "heavy",
     rarity = "uncommon",
-    worldModel = "models/weapons/w_rpg.mdl",
+    worldModel = "models/arccw/kraken/republic/world/w_z6.mdl",
     weaponClass = "arccw_k_z6"
 })
 
@@ -1048,7 +1051,7 @@ SWExp.Inventory:RegisterItem({
     height = 3,
     slotType = "heavy",
     rarity = "rare",
-    worldModel = "models/weapons/w_rpg.mdl",
+    worldModel = "models/arccw/kraken/republic/world/w_z6.mdl",
     weaponClass = "arccw_k_z6adv"
 })
 
@@ -1061,8 +1064,562 @@ SWExp.Inventory:RegisterItem({
     height = 3,
     slotType = "heavy",
     rarity = "epic",
-    worldModel = "models/weapons/w_ar2.mdl",
+    worldModel = "models/arccw/kraken/sw/explosives/world/w_plx1_republic.mdl",
     weaponClass = "arccw_k_launcher_plx1"
+})
+
+-- Обвесы
+
+SWExp.Inventory:RegisterItem({
+    id          = "att_a180_barrel_extended",
+    name        = "Extended Barrel",
+    description = "Improves ranged performance, but at the cost of mobility.",
+    icon        = "entities/kraken/sops/atts/a180barrel.png",
+    width       = 1,
+    height      = 1,
+    rarity      = "uncommon",
+    canDrop     = true,
+    attName     = "a180_barrel_extended",
+})
+
+SWExp.Inventory:RegisterItem({
+    id          = "att_a180_grip",
+    name        = "Tactical Grip",
+    description = "Improves recoil at the cost of aim time.",
+    icon        = "entities/kraken/sops/atts/a180grip.png",
+    width       = 1,
+    height      = 1,
+    rarity      = "uncommon",
+    canDrop     = true,
+    attName     = "a180_grip",
+})
+
+SWExp.Inventory:RegisterItem({
+    id          = "att_a280cfe_barrel_short",
+    name        = "Shortbarrel",
+    description = "Offers superior handling at the cost of performance.",
+    icon        = "entities/kraken/sops/atts/cfeshort.png",
+    width       = 1,
+    height      = 1,
+    rarity      = "uncommon",
+    canDrop     = true,
+    attName     = "a280cfe_barrel_short",
+})
+
+SWExp.Inventory:RegisterItem({
+    id          = "att_a280cfe_barrel_sniper",
+    name        = "Sniper Barrel",
+    description = "Improves ranged performance, but at the cost of mobility.",
+    icon        = "entities/kraken/sops/atts/cfesniper.png",
+    width       = 1,
+    height      = 1,
+    rarity      = "uncommon",
+    canDrop     = true,
+    attName     = "a280cfe_barrel_sniper",
+})
+
+SWExp.Inventory:RegisterItem({
+    id          = "att_a280cfe_powerpack",
+    name        = "Extended-power",
+    description = "More tibanna compression. More damage at the cost of less magazine capacity.",
+    icon        = "entities/kraken/sops/atts/cfepowerpack.png",
+    width       = 1,
+    height      = 1,
+    rarity      = "uncommon",
+    canDrop     = true,
+    attName     = "a280cfe_powerpack",
+})
+
+SWExp.Inventory:RegisterItem({
+    id          = "att_a280cfe_stock_assault",
+    name        = "Assault Stock",
+    description = "Lightweight stock. Improves ADS speed at the cost of recoil.",
+    icon        = "entities/kraken/sops/atts/assaultstock.png",
+    width       = 1,
+    height      = 1,
+    rarity      = "uncommon",
+    canDrop     = true,
+    attName     = "a280cfe_stock_assault",
+})
+
+SWExp.Inventory:RegisterItem({
+    id          = "att_a280cfe_stock_heavy",
+    name        = "Heavy Stock",
+    description = "Heavy stocK. Improves recoil.",
+    icon        = "entities/kraken/sops/atts/cfe_heavystock.png",
+    width       = 1,
+    height      = 1,
+    rarity      = "uncommon",
+    canDrop     = true,
+    attName     = "a280cfe_stock_heavy",
+})
+
+SWExp.Inventory:RegisterItem({
+    id          = "att_ammunition_ap",
+    name        = "APCR Projectile",
+    description = "APCR (Armored Piercing Capped Rigid) rounds are designed to penetrate armor using a core of harder material, often tungsten or steel, encased in a metal cap. The cap helps the core maintain its shape and effectiveness upon impact.",
+    icon        = "entities/kraken/ap_ammo.png",
+    width       = 1,
+    height      = 1,
+    rarity      = "uncommon",
+    canDrop     = true,
+    attName     = "ammunition_ap",
+})
+
+SWExp.Inventory:RegisterItem({
+    id          = "att_ammunition_cluster",
+    name        = "Cluster Rocket",
+    description = "A rocket equipped with cluster munitions, dispersing multiple smaller explosives upon detonation.",
+    icon        = "entities/kraken/rocket_cluster.png",
+    width       = 1,
+    height      = 1,
+    rarity      = "uncommon",
+    canDrop     = true,
+    attName     = "ammunition_cluster",
+})
+
+SWExp.Inventory:RegisterItem({
+    id          = "att_ammunition_heat",
+    name        = "HEAT Projectile",
+    description = "HEAT (High Explosive Anti-Tank) rounds use a shaped charge to focus explosive energy on a small point, allowing them to penetrate light armored vehicles.",
+    icon        = "entities/kraken/heat_ammo.png",
+    width       = 1,
+    height      = 1,
+    rarity      = "uncommon",
+    canDrop     = true,
+    attName     = "ammunition_heat",
+})
+
+SWExp.Inventory:RegisterItem({
+    id          = "att_ammunition_heatfs",
+    name        = "HEAT-FS Projectile",
+    description = "HEAT-FS (High Explosive Anti-Tank Fin-Stabilized) rounds are designed to penetrate armored vehicles. They use a shaped charge that focuses an explosive blast on a small point to melt through the armor, allowing the round to disable or destroy the target. The",
+    icon        = "entities/kraken/heatfs_ammo.png",
+    width       = 1,
+    height      = 1,
+    rarity      = "uncommon",
+    canDrop     = true,
+    attName     = "ammunition_heatfs",
+})
+
+SWExp.Inventory:RegisterItem({
+    id          = "att_ammunition_track",
+    name        = "Trackable Rocket",
+    description = "A rocket equipped with tracking capabilities, allowing it to follow targets more effectively.",
+    icon        = "entities/kraken/rocket_saclos.png",
+    width       = 1,
+    height      = 1,
+    rarity      = "uncommon",
+    canDrop     = true,
+    attName     = "ammunition_track",
+})
+
+SWExp.Inventory:RegisterItem({
+    id          = "att_arccw_k_dc15a_scope_ir",
+    name        = "DC-15A Scope (x4/IR)",
+    description = "Long range sniper optic. Used by the DLT-15A Blaster models.",
+    icon        = "entities/arccw/kraken/atts/dc15scope.png",
+    width       = 1,
+    height      = 1,
+    rarity      = "uncommon",
+    canDrop     = true,
+    attName     = "arccw_k_dc15a_scope_ir",
+})
+
+SWExp.Inventory:RegisterItem({
+    id          = "att_arccw_k_dc15x_scope_ir",
+    name        = "DC-15X Scope (x8/IR)",
+    description = "Long range sniper optic. Used by the DLT-15X Blaster models.",
+    icon        = "entities/arccw/kraken/atts/dc15scope.png",
+    width       = 1,
+    height      = 1,
+    rarity      = "uncommon",
+    canDrop     = true,
+    attName     = "arccw_k_dc15x_scope_ir",
+})
+
+SWExp.Inventory:RegisterItem({
+    id          = "att_arccw_k_dc17m_scope",
+    name        = "DC-17m Sniper Scope",
+    description = "",
+    icon        = "entities/arccw/kraken/atts/dc17mscope.png",
+    width       = 1,
+    height      = 1,
+    rarity      = "uncommon",
+    canDrop     = true,
+    attName     = "arccw_k_dc17m_scope",
+})
+
+SWExp.Inventory:RegisterItem({
+    id          = "att_arccw_k_dlt15a_scope",
+    name        = "DC-15A Scope (x4)",
+    description = "Long range sniper optic. Used by the DLT-15A Blaster models.",
+    icon        = "entities/arccw/kraken/atts/dc15scope.png",
+    width       = 1,
+    height      = 1,
+    rarity      = "uncommon",
+    canDrop     = true,
+    attName     = "arccw_k_dlt15a_scope",
+})
+
+SWExp.Inventory:RegisterItem({
+    id          = "att_arccw_k_dlt15x_scope",
+    name        = "DC-15X Scope (x8)",
+    description = "Long range sniper optic. Used by the DLT-15X Blaster models.",
+    icon        = "entities/arccw/kraken/atts/dc15scope.png",
+    width       = 1,
+    height      = 1,
+    rarity      = "uncommon",
+    canDrop     = true,
+    attName     = "arccw_k_dlt15x_scope",
+})
+
+SWExp.Inventory:RegisterItem({
+    id          = "att_arccw_k_e5s_scope",
+    name        = "E-5S Scope (x8)",
+    description = "Long range sniper optic. Used by the E-5S Blaster models.",
+    icon        = "entities/arccw/kraken/atts/e5sscope.png",
+    width       = 1,
+    height      = 1,
+    rarity      = "uncommon",
+    canDrop     = true,
+    attName     = "arccw_k_e5s_scope",
+})
+
+SWExp.Inventory:RegisterItem({
+    id          = "att_arccw_k_e5s_scope_ir",
+    name        = "E-5S Scope (x8/IR)",
+    description = "Long range sniper optic. Used by the E-5S Blaster models.",
+    icon        = "entities/arccw/kraken/atts/e5sscope.png",
+    width       = 1,
+    height      = 1,
+    rarity      = "uncommon",
+    canDrop     = true,
+    attName     = "arccw_k_e5s_scope_ir",
+})
+
+SWExp.Inventory:RegisterItem({
+    id          = "att_arccw_k_valken38_scope",
+    name        = "VALKEN-38 Scope (x8)",
+    description = "Long range sniper optic. Used by the VALKEN-38 Blaster models.",
+    icon        = "entities/arccw/kraken/atts/valkenscope.png",
+    width       = 1,
+    height      = 1,
+    rarity      = "uncommon",
+    canDrop     = true,
+    attName     = "arccw_k_valken38_scope",
+})
+
+SWExp.Inventory:RegisterItem({
+    id          = "att_arccw_k_valken38_scope_ir",
+    name        = "VALKEN-38 Scope (x8/IR)",
+    description = "Long range sniper optic. Used by the VALKEN-38 Blaster models.",
+    icon        = "entities/arccw/kraken/atts/valkenscope.png",
+    width       = 1,
+    height      = 1,
+    rarity      = "uncommon",
+    canDrop     = true,
+    attName     = "arccw_k_valken38_scope_ir",
+})
+
+SWExp.Inventory:RegisterItem({
+    id          = "att_arccw_k_westarm5_scope",
+    name        = "WESTAR-M5 Scope (x4)",
+    description = "Long range sniper optic. Used by the WESTAR-M5  Blaster models.",
+    icon        = "entities/arccw/kraken/atts/m5scope.png",
+    width       = 1,
+    height      = 1,
+    rarity      = "uncommon",
+    canDrop     = true,
+    attName     = "arccw_k_westarm5_scope",
+})
+
+SWExp.Inventory:RegisterItem({
+    id          = "att_arccw_k_westarm5_scope_ir",
+    name        = "WESTAR-M5 Scope (x4/IR)",
+    description = "Long range sniper optic. Used by the WESTAR-M5 Blaster models.",
+    icon        = "entities/arccw/kraken/atts/m5scope.png",
+    width       = 1,
+    height      = 1,
+    rarity      = "uncommon",
+    canDrop     = true,
+    attName     = "arccw_k_westarm5_scope_ir",
+})
+
+SWExp.Inventory:RegisterItem({
+    id          = "att_b2_rocket",
+    name        = "B2 Rocket",
+    description = "Replace the main-fire for a rocket.",
+    icon        = "",
+    width       = 1,
+    height      = 1,
+    rarity      = "uncommon",
+    canDrop     = true,
+    attName     = "b2_rocket",
+})
+
+SWExp.Inventory:RegisterItem({
+    id          = "att_bipod_specialforces",
+    name        = "Deployed Bipod",
+    description = "Deployed bipod for heavy weapons",
+    icon        = "entities/kraken/sops/atts/bipod.png",
+    width       = 1,
+    height      = 1,
+    rarity      = "uncommon",
+    canDrop     = true,
+    attName     = "bipod_specialforces",
+})
+
+SWExp.Inventory:RegisterItem({
+    id          = "att_dc17_cooling",
+    name        = "Cooling Improved",
+    description = "Improves the weapon performance.",
+    icon        = "entities/arccw/kraken/atts/module1.png",
+    width       = 1,
+    height      = 1,
+    rarity      = "uncommon",
+    canDrop     = true,
+    attName     = "dc17_cooling",
+})
+
+SWExp.Inventory:RegisterItem({
+    id          = "att_dc17_module",
+    name        = "DC-17S Module",
+    description = "Integrates the module of a DC-17S into the weapon.",
+    icon        = "entities/arccw/kraken/atts/module2.png",
+    width       = 1,
+    height      = 1,
+    rarity      = "uncommon",
+    canDrop     = true,
+    attName     = "dc17_module",
+})
+
+SWExp.Inventory:RegisterItem({
+    id          = "att_dc17_powerpack",
+    name        = "DC-17 Powerpack",
+    description = "More magazine capacity at the cost of less damage.",
+    icon        = "entities/arccw/kraken/atts/cooling.png",
+    width       = 1,
+    height      = 1,
+    rarity      = "uncommon",
+    canDrop     = true,
+    attName     = "dc17_powerpack",
+})
+
+SWExp.Inventory:RegisterItem({
+    id          = "att_dc17m_module_launcher",
+    name        = "DC-17m Launcher Module",
+    description = "Switches the DC-17m barrel to the anti-armor grenade launcher configuration. Fires explosive 40mm grenades with devastating area-of-effect damage.",
+    icon        = "entities/arccw/kraken/atts/dc17m_launchermodule.png",
+    width       = 1,
+    height      = 1,
+    rarity      = "uncommon",
+    canDrop     = true,
+    attName     = "dc17m_module_launcher",
+})
+
+SWExp.Inventory:RegisterItem({
+    id          = "att_dc17m_module_shotgun",
+    name        = "DC-17m Shotgun Module",
+    description = "Switches the DC-17m barrel to the anti-personnel shotgun configuration. Fires 9 energy pellets per shot in a tight spread pattern with devastating close-range power.",
+    icon        = "entities/arccw/kraken/atts/dc17m_shotgunmodule.png",
+    width       = 1,
+    height      = 1,
+    rarity      = "uncommon",
+    canDrop     = true,
+    attName     = "dc17m_module_shotgun",
+})
+
+SWExp.Inventory:RegisterItem({
+    id          = "att_dc17m_module_sniper",
+    name        = "DC-17m Sniper Module",
+    description = "Switches the DC-17m barrel to the long-range sniper configuration. Fires extremely powerful single shots with limited ammunition and no overheat fix.",
+    icon        = "entities/arccw/kraken/atts/dc17m_snipermodule.png",
+    width       = 1,
+    height      = 1,
+    rarity      = "uncommon",
+    canDrop     = true,
+    attName     = "dc17m_module_sniper",
+})
+
+SWExp.Inventory:RegisterItem({
+    id          = "att_mode_at",
+    name        = "Anti-Tank Mode",
+    description = "Set the weapon mode to anti-tank. It will greatly improve its performance against vehicles",
+    icon        = "entities/arccw/kraken/atts/at.png",
+    width       = 1,
+    height      = 1,
+    rarity      = "uncommon",
+    canDrop     = true,
+    attName     = "mode_at",
+})
+
+SWExp.Inventory:RegisterItem({
+    id          = "att_mode_charged",
+    name        = "Charged Mode",
+    description = "Set the weapon mode to charged shot. Designed for pistols. It will greatly improve its performance at long range, but it loses proficiency at short range.",
+    icon        = "entities/arccw/kraken/atts/charged2.png",
+    width       = 1,
+    height      = 1,
+    rarity      = "uncommon",
+    canDrop     = true,
+    attName     = "mode_charged",
+})
+
+SWExp.Inventory:RegisterItem({
+    id          = "att_mode_g125",
+    name        = "Tri-barrel Launcher",
+    description = "Under-barrel tri-barreled projectile launcher. Press USE + RELOAD to switch to launcher mode. Overheats after a full 3-round burst.",
+    icon        = "entities/kraken/g125_mode.png",
+    width       = 1,
+    height      = 1,
+    rarity      = "uncommon",
+    canDrop     = true,
+    attName     = "mode_g125",
+})
+
+SWExp.Inventory:RegisterItem({
+    id          = "att_mode_heatbased",
+    name        = "Heat-Based Mode",
+    description = "Set the weapon mode to heat-based.",
+    icon        = "entities/arccw/kraken/atts/heatbased.png",
+    width       = 1,
+    height      = 1,
+    rarity      = "uncommon",
+    canDrop     = true,
+    attName     = "mode_heatbased",
+})
+
+SWExp.Inventory:RegisterItem({
+    id          = "att_mode_le",
+    name        = "Long Engagements Mode",
+    description = "Set the weapon mode to long range. It will greatly improve its performance at long range, but it loses proficiency at short range.",
+    icon        = "entities/arccw/kraken/atts/le_mode.png",
+    width       = 1,
+    height      = 1,
+    rarity      = "uncommon",
+    canDrop     = true,
+    attName     = "mode_le",
+})
+
+SWExp.Inventory:RegisterItem({
+    id          = "att_mode_overcharged",
+    name        = "Overcharged Mode",
+    description = "Set the weapon mode to Overcharged Mode.",
+    icon        = "entities/arccw/kraken/atts/charged.png",
+    width       = 1,
+    height      = 1,
+    rarity      = "uncommon",
+    canDrop     = true,
+    attName     = "mode_overcharged",
+})
+
+SWExp.Inventory:RegisterItem({
+    id          = "att_mode_overpressure",
+    name        = "Overpressure Mode",
+    description = "Set the weapon overpressurized mode.",
+    icon        = "entities/arccw/kraken/atts/powerpack.png",
+    width       = 1,
+    height      = 1,
+    rarity      = "uncommon",
+    canDrop     = true,
+    attName     = "mode_overpressure",
+})
+
+SWExp.Inventory:RegisterItem({
+    id          = "att_mode_scatter",
+    name        = "Blaster Scatter Mode",
+    description = "Set the weapon mode to Scatter. Turns your weapon into a shotgun.",
+    icon        = "entities/arccw/kraken/atts/scatter.png",
+    width       = 1,
+    height      = 1,
+    rarity      = "uncommon",
+    canDrop     = true,
+    attName     = "mode_scatter",
+})
+
+SWExp.Inventory:RegisterItem({
+    id          = "att_mode_scatter_pistol",
+    name        = "Scatter Mode",
+    description = "Set the weapon mode to Scatter. Turns your weapon into a shotgun.",
+    icon        = "entities/arccw/kraken/atts/scatter.png",
+    width       = 1,
+    height      = 1,
+    rarity      = "uncommon",
+    canDrop     = true,
+    attName     = "mode_scatter_pistol",
+})
+
+SWExp.Inventory:RegisterItem({
+    id          = "att_mode_supersonic",
+    name        = "Super-Sonic Mode",
+    description = "Set the weapon mode to Super-Sonic Mode.",
+    icon        = "entities/arccw/kraken/atts/supersonic.png",
+    width       = 1,
+    height      = 1,
+    rarity      = "uncommon",
+    canDrop     = true,
+    attName     = "mode_supersonic",
+})
+
+SWExp.Inventory:RegisterItem({
+    id          = "att_rx21_powerpack",
+    name        = "Extended-power",
+    description = "More tibanna compression. More damage at the cost of less magazine capacity.",
+    icon        = "entities/kraken/sops/atts/rx21powerpack.png",
+    width       = 1,
+    height      = 1,
+    rarity      = "uncommon",
+    canDrop     = true,
+    attName     = "rx21_powerpack",
+})
+
+SWExp.Inventory:RegisterItem({
+    id          = "att_sops_ubgl_grapple_hook",
+    name        = "GRAPPLING HOOK",
+    description = "Adds a grappling hook as an underbarrel module. Launch, retract or extend a tether to pull yourself or light entities. Replicates the original hats_hook behavior.",
+    icon        = "entities/kraken/sops/atts/grapple.png",
+    width       = 1,
+    height      = 1,
+    rarity      = "uncommon",
+    canDrop     = true,
+    attName     = "sops_ubgl_grapple_hook",
+})
+
+SWExp.Inventory:RegisterItem({
+    id          = "att_ubgl_dc15",
+    name        = "Republic Underbarrel GL",
+    description = "Single-shot underbarrel grenade launcher. Able to fire several basic grenade types.",
+    icon        = "entities/arccw/kraken/atts/ubgl.png",
+    width       = 1,
+    height      = 1,
+    rarity      = "uncommon",
+    canDrop     = true,
+    attName     = "ubgl_dc15",
+})
+
+SWExp.Inventory:RegisterItem({
+    id          = "att_universal_vibroknife",
+    name        = "Vibroknife",
+    description = "Deploy a sharp vibroknife to suppress the enemy in melee",
+    icon        = "entities/arccw/kraken/atts/vibroknife.png",
+    width       = 1,
+    height      = 1,
+    rarity      = "uncommon",
+    canDrop     = true,
+    attName     = "universal_vibroknife",
+})
+
+SWExp.Inventory:RegisterItem({
+    id          = "att_valken38_sling",
+    name        = "Valken 38 Sling",
+    description = "Assault sling which improves recoil control and stability but takes longer to aim with.",
+    icon        = "entities/arccw/kraken/atts/sling.png",
+    width       = 1,
+    height      = 1,
+    rarity      = "uncommon",
+    canDrop     = true,
+    attName     = "valken38_sling",
 })
 
 -- Материалы
@@ -1077,7 +1634,7 @@ SWExp.Inventory:RegisterItem({
     maxStack    = 50,
     rarity      = "common",
     category    = "material",
-    canDrop     = true,
+    canDrop     = false,
     worldModel  = "models/props_junk/garbage_metalcan001a.mdl"
 })
 

@@ -47,13 +47,19 @@ local function SpawnDealers()
         end
     end
 
-    if not file.Exists('cars.txt', 'DATA') then
-        file.Write('cars.txt', '[]')
-        print('Created cars file!')
+    -- NextRPCarList теперь управляется исключительно sv_jobparser.lua
+    -- (загружается из SQL-таблицы swexp_vehicle_settings через DatabaseInitialized).
+    -- Старый cars.txt больше не используется — перезапись здесь ломала терминал
+    -- после рестарта, так как затирала уже загруженный из БД список.
+    --
+    -- Дополнительная страховка: если терминалы поднялись, а список ещё пуст
+    -- (БД инициализировалась до регистрации хука sv_jobparser или грузится дольше
+    -- обычного) — принудительно дёргаем загрузку сами.
+    if (not NextRPCarList or #NextRPCarList == 0) and MySQLite
+            and MySQLite.isInitialized and MySQLite.isInitialized()
+            and SWExp.CarDealer and SWExp.CarDealer.LoadSettingsFromDB then
+        SWExp.CarDealer:LoadSettingsFromDB()
     end
-
-    local cars = util.JSONToTable(file.Read('cars.txt', 'DATA'))
-    NextRPCarList = cars
 end
 
 hook.Add('InitPostEntity', 'NextRP::SpawnCarDealers', SpawnDealers)

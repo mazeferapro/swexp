@@ -15,7 +15,7 @@ SWExp.Ranks.List = {
     {
         id = 'TRP',
         name = 'Рядовой',
-        shortName = 'РДВ',
+        shortName = 'TRP',
         color = Color(150, 150, 150),
         armor = 0,
         sortOrder = 1
@@ -23,7 +23,7 @@ SWExp.Ranks.List = {
     {
         id = 'CPL',
         name = 'Капрал',
-        shortName = 'КПР',
+        shortName = 'CPL',
         color = Color(180, 180, 180),
         armor = 5,
         sortOrder = 2
@@ -33,7 +33,7 @@ SWExp.Ranks.List = {
     {
         id = 'SGT',
         name = 'Сержант',
-        shortName = 'СРЖ',
+        shortName = 'SGT',
         color = Color(100, 150, 255),
         armor = 10,
         sortOrder = 3
@@ -41,7 +41,7 @@ SWExp.Ranks.List = {
     {
         id = 'SSGT',
         name = 'Старший сержант',
-        shortName = 'СТ.СРЖ',
+        shortName = 'SSGT',
         color = Color(80, 130, 255),
         armor = 15,
         sortOrder = 4
@@ -49,7 +49,7 @@ SWExp.Ranks.List = {
     {
         id = 'SGM',
         name = 'Сержант-майор',
-        shortName = 'СРЖ-МАЙ',
+        shortName = 'SGM',
         color = Color(60, 110, 255),
         armor = 20,
         sortOrder = 5
@@ -59,7 +59,7 @@ SWExp.Ranks.List = {
     {
         id = 'LT',
         name = 'Лейтенант',
-        shortName = 'ЛЕЙ',
+        shortName = 'LT',
         color = Color(255, 200, 0),
         armor = 25,
         sortOrder = 6
@@ -67,7 +67,7 @@ SWExp.Ranks.List = {
     {
         id = 'CPT',
         name = 'Капитан',
-        shortName = 'КПТ',
+        shortName = 'CPT',
         color = Color(255, 180, 0),
         armor = 30,
         sortOrder = 7
@@ -75,15 +75,15 @@ SWExp.Ranks.List = {
     {
         id = 'MAJ',
         name = 'Майор',
-        shortName = 'МАЙ',
+        shortName = 'MAJ',
         color = Color(255, 160, 0),
         armor = 35,
         sortOrder = 8
     },
     {
         id = 'CMDR',
-        name = 'Командир',
-        shortName = 'КМД',
+        name = 'Командер',
+        shortName = 'CMD',
         color = Color(255, 100, 0),
         armor = 40,
         sortOrder = 9,
@@ -93,8 +93,8 @@ SWExp.Ranks.List = {
     -- Высший состав
     {
         id = 'MCMDR',
-        name = 'Маршал-командир',
-        shortName = 'МРШ-КМД',
+        name = 'Маршал-командер',
+        shortName = 'MC',
         color = Color(255, 50, 50),
         armor = 50,
         sortOrder = 10,

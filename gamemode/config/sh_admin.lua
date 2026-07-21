@@ -12,3 +12,4 @@ SWExp.Config.Admins = {
 SWExp.Config.SuperAdmins = {
     ['superadmin'] = true,
 }
+

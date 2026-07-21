@@ -247,8 +247,10 @@ function SWExp.Inventory:AddItem(pPlayer, itemID, amount, targetStorage)
                 amount = amount - canAdd
                 
                 if amount <= 0 then
+                    hook.Run("SWExp::ItemAddedToInventory", pPlayer, itemID, originalAmount)
                     self:SyncInventoryToClient(pPlayer)
                     self:SaveCharacterInventory(pPlayer, charID)
+                    hook.Run("SWExp::InventoryChanged", pPlayer)
                     return true
                 end
             end
@@ -284,6 +286,8 @@ function SWExp.Inventory:AddItem(pPlayer, itemID, amount, targetStorage)
         itemID = itemID,
         amount = originalAmount,
     })
+
+    hook.Run("SWExp::ItemAddedToInventory", pPlayer, itemID, originalAmount)
 
     -- Хук для модулей, которым нужно знать об изменении инвентаря (ассемблер, исследования)
     hook.Run("SWExp::InventoryChanged", pPlayer)
@@ -493,6 +497,7 @@ function SWExp.Inventory:MoveItem(pPlayer, uniqueID, newPosX, newPosY, fromStora
 
     self:SyncInventoryToClient(pPlayer)
     self:SaveCharacterInventory(pPlayer, charID)
+    hook.Run("SWExp::InventoryChanged", pPlayer)
     return true
 end
 
@@ -653,10 +658,25 @@ end
 function SWExp.Inventory:UnequipItem(pPlayer, slotType, slotIndex)
     local charID = self:GetCharacterID(pPlayer)
     if not charID then return false end
-    
+
     local steamID = pPlayer:SteamID64()
     local equip = self.PlayerEquipment[steamID] and self.PlayerEquipment[steamID][charID]
     if not equip or not equip[slotType] or not equip[slotType][slotIndex] then return false end
+
+    -- Нельзя снять броню если есть оружие в основном, второстепенном или тяжёлом слоте
+    if slotType == "armor" then
+        local weaponSlots = { "primary", "secondary", "heavy" }
+        for _, wSlot in ipairs(weaponSlots) do
+            if equip[wSlot] then
+                for _, wItem in pairs(equip[wSlot]) do
+                    if wItem and wItem.itemID then
+                        pPlayer:ChatPrint("[Броня] Сначала снимите оружие из основного, второстепенного и тяжёлого слотов.")
+                        return false
+                    end
+                end
+            end
+        end
+    end
     
     local item = equip[slotType][slotIndex]
 
@@ -1219,6 +1239,67 @@ netstream.Hook("SWExp::InventoryMergeItems", function(pPlayer, data)
     if not RateOk(pPlayer, "InventoryMergeItems") then return end
     if not istable(data) then return end
     SWExp.Inventory:MergeItems(pPlayer, data.sourceUID, data.targetUID, data.fromStorage, data.toStorage)
+end)
+
+-- ============================================================================
+-- БЫСТРОЕ ПЕРЕМЕЩЕНИЕ (SHIFT + ЛКМ): авто-поиск свободного слота в цели
+-- ============================================================================
+
+-- Перемещает предмет из одного хранилища в другое, автоматически находя
+-- первый свободный слот. Используется для Shift+Click в UI.
+function SWExp.Inventory:QuickMoveItem(pPlayer, uniqueID, fromStorage, toStorage)
+    if not IsValid(pPlayer) then return false, "Игрок не найден" end
+    local charID = self:GetCharacterID(pPlayer)
+    if not charID then return false, "Персонаж не загружен" end
+    local steamID = pPlayer:SteamID64()
+
+    local srcStorage = fromStorage
+        and (self.PlayerStorages[steamID] and self.PlayerStorages[steamID][charID])
+        or  (self.PlayerInventories[steamID] and self.PlayerInventories[steamID][charID])
+    local dstStorage = toStorage
+        and (self.PlayerStorages[steamID] and self.PlayerStorages[steamID][charID])
+        or  (self.PlayerInventories[steamID] and self.PlayerInventories[steamID][charID])
+
+    if not srcStorage or not srcStorage.items[uniqueID] then
+        return false, "Предмет не найден"
+    end
+    if not dstStorage then return false, "Целевое хранилище не найдено" end
+
+    local item     = srcStorage.items[uniqueID]
+    local itemData = self:GetItemData(item.itemID)
+    if not itemData then return false, "Данные предмета не найдены" end
+
+    local dstGridW = toStorage and self.Config.StorageGridWidth  or self.Config.GridWidth
+    local dstGridH = toStorage and self.Config.StorageGridHeight or self.Config.GridHeight
+
+    -- Нормализуем поворот
+    local rotated  = item.rotated == true or item.rotated == 1
+    local baseW    = itemData.width  or 1
+    local baseH    = itemData.height or 1
+    local effW     = rotated and baseH or baseW
+    local effH     = rotated and baseW or baseH
+
+    -- Сначала пробуем с сохранением поворота, затем без поворота
+    local fakeData = { width = effW, height = effH }
+    local px, py = self:FindFreeSlot(dstStorage.grid, dstGridW, dstGridH, fakeData)
+
+    -- Если с текущим поворотом не влезает — пробуем перевернуть
+    if not px and (effW ~= effH) then
+        fakeData = { width = effH, height = effW }
+        px, py = self:FindFreeSlot(dstStorage.grid, dstGridW, dstGridH, fakeData)
+        if px then rotated = not rotated end
+    end
+
+    if not px then return false, "Нет свободного места" end
+
+    return self:MoveItem(pPlayer, uniqueID, px, py, fromStorage, toStorage, rotated)
+end
+
+-- Netstream: Shift+Click быстрое перемещение между инвентарём и хранилищем
+netstream.Hook("SWExp::InventoryQuickMove", function(pPlayer, data)
+    if not RateOk(pPlayer, "InventoryQuickMove") then return end
+    if not istable(data) then return end
+    SWExp.Inventory:QuickMoveItem(pPlayer, data.uniqueID, data.fromStorage, data.toStorage)
 end)
 
 hook.Add("PlayerDisconnected", "SWExp::Inventory_OnDisconnect", function(pPlayer)

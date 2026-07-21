@@ -23,8 +23,8 @@ function ENT:Initialize()
     self.SpawnTime = CurTime()
     self.Items     = {}
 
-    -- Время жизни сумки смерти: 5 минут
-    self.Lifetime = 300
+    -- Время жизни сумки смерти: 30 минут
+    self.Lifetime = 1800
 end
 
 function ENT:SetItems(items)

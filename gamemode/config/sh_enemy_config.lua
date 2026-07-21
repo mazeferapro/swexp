@@ -19,32 +19,39 @@ local C = SWExp.EnemyConfig
 C.System = {
     -- Как часто менеджер проверяет всех игроков и пулы (сек).
     -- Ниже = отзывчивее, но больше нагрузка. 0.5 — оптимум.
-    thinkInterval   = 0.5,
+    thinkInterval   = 0.1,
 
     -- Минимальное расстояние от игрока до точки спавна (ед.)
-    spawnMinDist    = 1500,
+    spawnMinDist    = 1000,
     -- Максимальное расстояние от игрока до точки спавна (ед.)
-    spawnMaxDist    = 3500,
+    spawnMaxDist    = 1500,
 
     -- Максимум попыток найти валидную точку спавна за один цикл
-    spawnMaxTries   = 32,
+    spawnMaxTries   = 128,
 
     -- Буфер безопасной зоны: спавн запрещён ближе чем (safezone.Radius + buffer)
     safezoneBuffer  = 500,
 
     -- Grace period: сколько сек враги остаются после падения шума ниже порога (сек).
     -- По истечении — удаляются вдали от глаз игрока.
-    lowNoiseGrace   = 60,
+    lowNoiseGrace   = 0,
 
     -- При входе игрока в safezone — сразу же начинается деспавн его пула (сек).
     enterSafezoneDespawn = 5,
 
     -- Дистанция, дальше которой живой NPC удаляется при деспавне (ед.).
     -- Если игрок далеко от NPC при деспавне — NPC удаляется тихо.
-    despawnHideDist = 2500,
+    despawnHideDist = 1500,
 
     -- Дистанция слышимости выстрела для тревоги (ед.). Чисто косметическая в текущей версии.
     shotHearDist    = 1200,
+
+
+    -- Leash-дистанция: враг дальше этого порога от игрока удаляется тихо,
+    -- даже если шум ещё высокий (NPC потерялся, застрял, или игрок убежал).
+    -- Рекомендуется spawnMaxDist * 1.5, т.е. 5250 при дефолтных настройках.
+
+    leashDist       = 5250,
 }
 
 -- ============================================================
@@ -59,7 +66,7 @@ C.Noise = {
     stealthThreshold  = 5,
 
     -- Скорость естественного затухания шума (единиц в секунду). Только когда игрок ничего не делает.
-    decayPerSecond    = 1,
+    decayPerSecond    = 0.5,
 
     -- Стартовое значение шума для нового игрока
     startValue        = 0,
@@ -84,7 +91,7 @@ C.Noise.Sources = {
     takeDamage     = 3,
 
     -- Езда на технике (в секунду пока игрок за рулём)
-    vehiclePerSec  = 0.5,
+    vehiclePerSec  = 1,
 
     -- Выстрел — дефолт, если оружие не найдено в таблице ниже
     shotDefault    = 4,
@@ -147,27 +154,26 @@ C.Tier = {
         name            = "Падальщики периметра",
         color           = Color(80, 200, 100),
 
-        hp              = 80,
+        hp              = 400,
         damageScale     = 1.0,
         speedScale      = 1.0,
-        viewRange       = 1500,
-        hearingRange    = 1000,
-        aggression      = 0.6,
+        viewRange       = 20000,
+        hearingRange    = 20000,
+        aggression      = 0,
 
         -- ЗАМЕНИ на своих NPC тира 1
-        npcClasses      = { "npc_vj_gc_slasher5", "npc_vj_gc_infector", "npc_vj_gc_pack", "npc_vj_gc_lurker", "npc_vj_gc_leaper", "npc_vj_gc_pregnant"},
+        npcClasses      = { "npc_vj_gc_civilian_slasher_male", "npc_vj_gc_pack", "npc_vj_gc_lurker", "npc_vj_gc_civilian_slasher_female", "npc_vj_gc_ds2_crazystalker", "npc_vj_gc_brutez", "npc_vj_gc_growler"},
 
-        noiseToEnemy    = 20,    -- 1 враг за каждые 20 единиц шума
-        maxConcurrent   = 4,
-        globalCap       = 20,
+        noiseToEnemy    = 5,    -- 1 враг за каждые 20 единиц шума
+        maxConcurrent   = 6,
+        globalCap       = 40,
 
-        waveSpawnInterval = 3,
+        waveSpawnInterval = 1,
 
-        omenSoundMin    = 3,
-        omenSoundMax    = 5,
+        omenSoundMin    = 1.5,
+        omenSoundMax    = 3,
         omenSounds      = {
             "ambient/creatures/town_child_scream1.wav",
-            "npc/headcrab/alert1.wav",
         },
     },
 
@@ -176,19 +182,19 @@ C.Tier = {
         name            = "Охотники рубежа",
         color           = Color(80, 160, 255),
 
-        hp              = 180,
-        damageScale     = 1.4,
+        hp              = 600,
+        damageScale     = 1.0,
         speedScale      = 1.05,
-        viewRange       = 2000,
-        hearingRange    = 1400,
-        aggression      = 0.75,
+        viewRange       = 20000,
+        hearingRange    = 20000,
+        aggression      = 1.0,
 
         -- ЗАМЕНИ на своих NPC тира 2
-        npcClasses      = { "npc_zombie", "npc_fastzombie" },
+        npcClasses      = {"npc_vj_gc_slasher4", "npc_vj_qc_enhancefeeder", "npc_vj_gc_lurker", "npc_vj_gc_enhanced_leaper", "npc_vj_gc_enhanced_puker", "npc_vj_gc_ds2_enhanced_stalker", "npc_vj_ac_twitcher", "npc_vj_gc_swallower", "npc_vj_gc_enhancedbrute1"},
 
-        noiseToEnemy    = 18,
+        noiseToEnemy    = 5,
         maxConcurrent   = 6,
-        globalCap       = 25,
+        globalCap       = 40,
 
         waveSpawnInterval = 3,
 
@@ -205,21 +211,21 @@ C.Tier = {
         name            = "Твари аномалий",
         color           = Color(255, 180, 40),
 
-        hp              = 400,
-        damageScale     = 1.8,
-        speedScale      = 1.1,
-        viewRange       = 2400,
-        hearingRange    = 1800,
-        aggression      = 0.85,
+        hp              = 1000,
+        damageScale     = 2,
+        speedScale      = 2,
+        viewRange       = 2000,
+        hearingRange    = 2000,
+        aggression      = 1.0,
 
         -- ЗАМЕНИ на своих NPC тира 3
-        npcClasses      = { "npc_antlion", "npc_antlionguard" },
+        npcClasses      = { "npc_vj_gc_divider_soldier", "npc_vj_gc_divider_beam", "npc_vj_gc_divider_flame", "npc_vj_gc_divider_linegun", "npc_vj_gc_divider_pistol", "npc_vj_gc_divider_pulse", "npc_vj_gc_divider_rocket", "npc_vj_gc_divider_seeker", "npc_vj_gc_divider_shotgun"},
 
-        noiseToEnemy    = 16,
-        maxConcurrent   = 8,
-        globalCap       = 25,
+        noiseToEnemy    = 5,
+        maxConcurrent   = 6,
+        globalCap       = 40,
 
-        waveSpawnInterval = 4,
+        waveSpawnInterval = 3,
 
         omenSoundMin    = 5,
         omenSoundMax    = 7,
@@ -234,7 +240,7 @@ C.Tier = {
         name            = "Владыки тьмы",
         color           = Color(220, 60, 60),
 
-        hp              = 800,
+        hp              = 1000,
         damageScale     = 2.2,
         speedScale      = 1.15,
         viewRange       = 2800,
@@ -242,13 +248,13 @@ C.Tier = {
         aggression      = 1.0,
 
         -- ЗАМЕНИ на своих NPC тира 4
-        npcClasses      = { "npc_hunter", "npc_combine_s" },
+        npcClasses      = { "npc_vj_gc_spider", "npc_vj_gc_tripodboss", "npc_vj_ac_gorefiend"},
 
         noiseToEnemy    = 14,
         maxConcurrent   = 10,
         globalCap       = 20,
 
-        waveSpawnInterval = 5,
+        waveSpawnInterval = 3,
 
         omenSoundMin    = 6,
         omenSoundMax    = 8,

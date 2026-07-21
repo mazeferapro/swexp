@@ -198,9 +198,13 @@ function ENT:SpawnCycle()
     if not IsValid(self) then return end
     self:CleanupLists()
 
-    local need = self._maxMat - #self._matNodes
-    for _ = 1, need do
-        self:SpawnMatNode()
+    -- Заполняем зону только если она полностью пуста (начальный спавн / после ApplySettings / safety net).
+    -- Обычный респавн после добычи идёт через OnNodeDepleted с точной задержкой self._respawn.
+    -- Это гарантирует, что респавн ресурсов происходит ровно через заданное в настройках время после истощения нода.
+    if #self._matNodes == 0 then
+        for _ = 1, self._maxMat do
+            self:SpawnMatNode()
+        end
     end
 
     timer.Create("SWExp::MatZone_" .. self:EntIndex(), self._respawn, 1, function()
@@ -214,7 +218,11 @@ end
 
 function ENT:OnNodeDepleted(node)
     self:CleanupLists()
-    timer.Simple(math.random(15, 30), function()
+    -- Респавн отдельного истощённого нода происходит ровно через заданное время self._respawn
+    -- (настраивается в меню зоны по E). Раньше использовался *0.3, из-за чего ресурсы появлялись
+    -- не в то время, которое указано в настройках.
+    local delay = math.max(10, self._respawn)
+    timer.Simple(delay, function()
         if not IsValid(self) then return end
         self:CleanupLists()
         if #self._matNodes < self._maxMat then
